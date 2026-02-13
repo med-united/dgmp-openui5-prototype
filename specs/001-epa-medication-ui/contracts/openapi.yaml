@@ -1,0 +1,539 @@
+openapi: 3.0.3
+info:
+  title: ePA Medication Service UI API
+  description: REST API for ePA Medication Service UI Prototype (fixtures + eGK integration)
+  version: 1.0.0
+  contact:
+    name: FHIR TI Prototype Team
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development server
+
+tags:
+  - name: Patient
+    description: Patient demographics and search
+  - name: Medication
+    description: eML (Medication List) and eMP (Medication Plan) operations
+  - name: Card Reader
+    description: eGK card reading integration
+
+paths:
+  /patients/search:
+    get:
+      summary: Search for patient by KVNR
+      tags: [Patient]
+      parameters:
+        - name: kvnr
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z0-9]{10}$'
+          description: Krankenversichertennummer (10 alphanumeric characters)
+      responses:
+        '200':
+          description: Patient found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        '404':
+          description: Patient not found
+
+  /patients/recent:
+    get:
+      summary: Get list of recently viewed patients
+      tags: [Patient]
+      responses:
+        '200':
+          description: List of recent patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Patient'
+                maxItems: 10
+
+  /medications/list/{kvnr}:
+    get:
+      summary: Get eML (Medication List) for patient
+      tags: [Medication]
+      parameters:
+        - name: kvnr
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Medication list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicationList'
+        '404':
+          description: Patient not found
+
+  /medications/plan/{kvnr}:
+    get:
+      summary: Get eMP (Medication Plan) for patient
+      tags: [Medication]
+      parameters:
+        - name: kvnr
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Medication plan retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicationPlan'
+        '404':
+          description: Patient not found
+
+  /medications/plan/{kvnr}/entries:
+    post:
+      summary: Add new entry to eMP
+      tags: [Medication]
+      parameters:
+        - name: kvnr
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicationPlanEntryCreate'
+      responses:
+        '201':
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicationPlanEntry'
+        '409':
+          description: Duplicate detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateMatch'
+
+  /medications/plan/{kvnr}/entries/{entryId}:
+    put:
+      summary: Update existing eMP entry
+      tags: [Medication]
+      parameters:
+        - name: kvnr
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicationPlanEntryUpdate'
+      responses:
+        '200':
+          description: Entry updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicationPlanEntry'
+        '404':
+          description: Entry not found
+        '409':
+          description: Duplicate detected (if medication changed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateMatch'
+
+    delete:
+      summary: Delete eMP entry
+      tags: [Medication]
+      parameters:
+        - name: kvnr
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Entry deleted
+        '404':
+          description: Entry not found
+
+  /medications/plan/{kvnr}/entries/{entryId}/status:
+    patch:
+      summary: Change medication status (pause, reactivate, complete)
+      tags: [Medication]
+      parameters:
+        - name: kvnr
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [active, paused, completed]
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicationPlanEntry'
+        '400':
+          description: Invalid status transition
+        '404':
+          description: Entry not found
+
+  /medications/plan/{kvnr}/export-pdf:
+    get:
+      summary: Export eMP as PDF (Bundesmedikationsplan format)
+      tags: [Medication]
+      parameters:
+        - name: kvnr
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDF generated
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Patient not found
+
+  /medications/reconciliation/{kvnr}:
+    get:
+      summary: Get reconciliation items (eML entries missing in eMP)
+      tags: [Medication]
+      parameters:
+        - name: kvnr
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reconciliation items retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReconciliationItem'
+
+  /medications/link:
+    post:
+      summary: Link eML entry to eMP entry
+      tags: [Medication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emlEntryId, empEntryId]
+              properties:
+                emlEntryId:
+                  type: string
+                empEntryId:
+                  type: string
+      responses:
+        '204':
+          description: Entries linked
+        '404':
+          description: One or both entries not found
+
+    delete:
+      summary: Unlink eML entry from eMP entry
+      tags: [Medication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emlEntryId]
+              properties:
+                emlEntryId:
+                  type: string
+      responses:
+        '204':
+          description: Link removed
+        '404':
+          description: Entry not found
+
+  /cardreader/read-patient:
+    post:
+      summary: Read patient demographics from eGK card
+      tags: [Card Reader]
+      responses:
+        '200':
+          description: Patient data read successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientDemographics'
+        '500':
+          description: Card reader error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [CARD_READER_DISCONNECTED, CARD_REMOVED, CORRUPTED_DATA, ACCESS_DENIED]
+                  message:
+                    type: string
+
+components:
+  schemas:
+    Patient:
+      type: object
+      required: [kvnr, firstName, lastName, dateOfBirth]
+      properties:
+        kvnr:
+          type: string
+          pattern: '^[A-Z0-9]{10}$'
+        firstName:
+          type: string
+        lastName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        insuranceType:
+          type: string
+          enum: [GKV, PKV, other]
+
+    MedicationEntry:
+      type: object
+      required: [id, pzn, medicationName, activeIngredient]
+      properties:
+        id:
+          type: string
+          format: uuid
+        pzn:
+          type: string
+          pattern: '^[0-9]{8}$'
+        medicationName:
+          type: string
+        activeIngredient:
+          type: string
+        strength:
+          type: string
+        dosageText:
+          type: string
+        dosageStructured:
+          type: string
+          pattern: '^\d-\d-\d-\d$'
+        intakeInstructions:
+          type: string
+        indication:
+          type: string
+        atcCode:
+          type: string
+        askCode:
+          type: string
+
+    MedicationListEntry:
+      allOf:
+        - $ref: '#/components/schemas/MedicationEntry'
+        - type: object
+          required: [entryType, authoredDate]
+          properties:
+            entryType:
+              type: string
+              enum: [prescription, dispensement]
+            authoredDate:
+              type: string
+              format: date-time
+            prescriber:
+              type: string
+            pharmacy:
+              type: string
+            linkedToPlanId:
+              type: string
+              format: uuid
+
+    MedicationPlanEntry:
+      allOf:
+        - $ref: '#/components/schemas/MedicationEntry'
+        - type: object
+          required: [status, entrySource, createdAt, lastModified]
+          properties:
+            status:
+              type: string
+              enum: [active, paused, planned, completed]
+            entrySource:
+              type: string
+              enum: [self_medication, prescription]
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+            createdAt:
+              type: string
+              format: date-time
+            lastModified:
+              type: string
+              format: date-time
+
+    MedicationPlanEntryCreate:
+      type: object
+      required: [pzn, medicationName, activeIngredient, status, entrySource]
+      properties:
+        pzn:
+          type: string
+        medicationName:
+          type: string
+        activeIngredient:
+          type: string
+        strength:
+          type: string
+        dosageText:
+          type: string
+        dosageStructured:
+          type: string
+        intakeInstructions:
+          type: string
+        indication:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, planned]
+        entrySource:
+          type: string
+          enum: [self_medication, prescription]
+        startDate:
+          type: string
+          format: date
+
+    MedicationPlanEntryUpdate:
+      type: object
+      properties:
+        dosageText:
+          type: string
+        dosageStructured:
+          type: string
+        intakeInstructions:
+          type: string
+        indication:
+          type: string
+
+    MedicationList:
+      type: object
+      required: [kvnr, entries, lastUpdated]
+      properties:
+        kvnr:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicationListEntry'
+        lastUpdated:
+          type: string
+          format: date-time
+
+    MedicationPlan:
+      type: object
+      required: [kvnr, entries, version, lastUpdated]
+      properties:
+        kvnr:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicationPlanEntry'
+        version:
+          type: integer
+        lastUpdated:
+          type: string
+          format: date-time
+
+    DuplicateMatch:
+      type: object
+      required: [newEntry, existingEntry, matchReason, confidence]
+      properties:
+        newEntry:
+          $ref: '#/components/schemas/MedicationEntry'
+        existingEntry:
+          $ref: '#/components/schemas/MedicationPlanEntry'
+        matchReason:
+          type: string
+          enum: [same_pzn, same_atc, same_ask]
+        confidence:
+          type: string
+          enum: [high, medium]
+
+    ReconciliationItem:
+      type: object
+      required: [emlEntry, matchStatus, suggestedAction]
+      properties:
+        emlEntry:
+          $ref: '#/components/schemas/MedicationListEntry'
+        matchStatus:
+          type: string
+          enum: [missing_in_emp, partial_match]
+        suggestedAction:
+          type: string
+          enum: [add_to_emp, link_to_existing, ignore]
+
+    PatientDemographics:
+      type: object
+      required: [kvnr, firstName, lastName, dateOfBirth]
+      properties:
+        kvnr:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        rawXml:
+          type: string
