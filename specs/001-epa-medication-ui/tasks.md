@@ -25,14 +25,14 @@ Per plan.md:
 
 **Purpose**: Project initialization and basic application structure
 
-- [ ] T001 Create webapp/ directory structure (controller/, view/, model/, test/)
-- [ ] T002 Create backend package structure under src/main/java/de/servicehealth/epa/ (patient/, medication/, cardreading/)
-- [ ] T003 [P] Add OpenUI5 dependency configuration in webapp/manifest.json with CDN URL for v1.120+ LTS
-- [ ] T004 [P] Configure Quarkus pom.xml dependencies (smartcard-playground, HAPI FHIR Jakarta 7.x, Apache PDFBox 3.x)
-- [ ] T005 [P] Create webapp/index.html entry point
-- [ ] T006 [P] Create webapp/Component.js root UI component
-- [ ] T007 [P] Configure CORS in Quarkus application.properties for localhost:8080
-- [ ] T008 [P] Setup logging configuration in application.properties
+- [x] T001 Create webapp/ directory structure (controller/, view/, model/, test/)
+- [x] T002 Create backend package structure under src/main/java/de/servicehealth/epa/ (patient/, medication/, cardreading/)
+- [x] T003 [P] Add OpenUI5 dependency configuration in webapp/manifest.json with CDN URL for v1.120+ LTS
+- [x] T004 [P] Configure Quarkus pom.xml dependencies (smartcard-playground, HAPI FHIR Jakarta 7.x, Apache PDFBox 3.x)
+- [x] T005 [P] Create webapp/index.html entry point
+- [x] T006 [P] Create webapp/Component.js root UI component
+- [x] T007 [P] Configure CORS in Quarkus application.properties for localhost:8080
+- [x] T008 [P] Setup logging configuration in application.properties
 
 **Checkpoint**: Project structure ready, dependencies configured
 
@@ -44,15 +44,15 @@ Per plan.md:
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T009 Create Patient domain model in src/main/java/de/servicehealth/epa/patient/model/Patient.java
-- [ ] T010 Create PatientService in src/main/java/de/servicehealth/epa/patient/PatientService.java
-- [ ] T011 Create PatientResource JAX-RS endpoint in src/main/java/de/servicehealth/epa/patient/PatientResource.java
-- [ ] T012 [P] Create FixtureLoader utility in src/main/java/de/servicehealth/epa/medication/FixtureLoader.java
-- [ ] T013 [P] Create JSON fixtures directory src/main/resources/fixtures/
-- [ ] T014 [P] Create sample patients.json fixture with 3 patients (X123456789, Y987654321, Z555111222)
-- [ ] T015 [P] Create OpenUI5 base formatter util in webapp/model/formatter.js
-- [ ] T016 [P] Create OpenUI5 model initialization in webapp/model/models.js
-- [ ] T017 Create main App.view.xml and App.controller.js
+- [x] T009 Create Patient domain model in src/main/java/de/servicehealth/epa/patient/model/Patient.java
+- [x] T010 Create PatientService in src/main/java/de/servicehealth/epa/patient/PatientService.java
+- [x] T011 Create PatientResource JAX-RS endpoint in src/main/java/de/servicehealth/epa/patient/PatientResource.java
+- [x] T012 [P] Create FixtureLoader utility (integrated into PatientService.java - fixture loading logic included)
+- [x] T013 [P] Create JSON fixtures directory src/main/resources/fixtures/
+- [x] T014 [P] Create sample patients.json fixture with 3 patients (X123456789, Y987654321, Z555111222)
+- [x] T015 [P] Create OpenUI5 base formatter util in webapp/model/formatter.js
+- [x] T016 [P] Create OpenUI5 model initialization in webapp/model/models.js
+- [x] T017 Create main App.view.xml and App.controller.js
 
 **Checkpoint**: Foundation ready - user stories can now be implemented in parallel
 
@@ -66,17 +66,17 @@ Per plan.md:
 
 ### Implementation for User Story 0
 
-- [ ] T018 [P] [US0] Create PatientSelection.view.xml with search input, eGK button, recent patients list
-- [ ] T019 [P] [US0] Create PatientSelection.controller.js with search and navigation logic
-- [ ] T020 [P] [US0] Implement GET /api/patients/search?kvnr={kvnr} endpoint in PatientResource.java
-- [ ] T021 [P] [US0] Implement GET /api/patients/recent endpoint in PatientResource.java
-- [ ] T022 [US0] Add session storage logic for recent patients in PatientService.java
-- [ ] T023 [US0] Create PatientView.view.xml container with IconTabBar (3 tabs: eML, eMP, Reconciliation)
-- [ ] T024 [US0] Create PatientView.controller.js with tab switching and "Switch Patient" button logic
-- [ ] T025 [P] [US0] Add FR-001a validation: KVNR must be 10 alphanumeric characters
-- [ ] T026 [P] [US0] Add FR-001c: Search via Enter key support
-- [ ] T027 [P] [US0] Add FR-001g: "Switch Patient" button in PatientView header
-- [ ] T028 [US0] Update PatientService to maintain recent patients list (max 10, localStorage persistence per FR-001h)
+- [x] T018 [P] [US0] Create PatientSelection.view.xml with search input, eGK button, recent patients list
+- [x] T019 [P] [US0] Create PatientSelection.controller.js with search and navigation logic
+- [x] T020 [P] [US0] Implement GET /api/patients/search?kvnr={kvnr} endpoint in PatientResource.java
+- [x] T021 [P] [US0] Implement GET /api/patients/recent endpoint in PatientResource.java
+- [x] T022 [US0] Add session storage logic for recent patients in PatientService.java
+- [x] T023 [US0] Create PatientView.view.xml container with IconTabBar (3 tabs: eML, eMP, Reconciliation)
+- [x] T024 [US0] Create PatientView.controller.js with tab switching and "Switch Patient" button logic
+- [x] T025 [P] [US0] Add FR-001a validation: KVNR must be 10 alphanumeric characters
+- [x] T026 [P] [US0] Add FR-001c: Search via Enter key support
+- [x] T027 [P] [US0] Add FR-001g: "Switch Patient" button in PatientView header
+- [x] T028 [US0] Update PatientService to maintain recent patients list (max 10, localStorage persistence per FR-001h)
 
 **Checkpoint**: Patient selection and navigation fully functional. Can search, view recent patients, navigate to patient view with tabs.
 

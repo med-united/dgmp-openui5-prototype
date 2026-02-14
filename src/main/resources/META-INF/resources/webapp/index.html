@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ePA Medication Service</title>
+
+    <script id="sap-ui-bootstrap" src="https://openui5.hana.ondemand.com/resources/sap-ui-core.js"
+        data-sap-ui-theme="sap_horizon" data-sap-ui-libs="sap.m,sap.ui.layout" data-sap-ui-async="true"
+        data-sap-ui-resourceroots='{"epa": "./"}'>
+        </script>
+
+    <script>
+        sap.ui.getCore().attachInit(function () {
+            // Define controller inline first
+            sap.ui.require([
+                "sap/ui/core/mvc/Controller",
+                "sap/ui/model/json/JSONModel",
+                "sap/m/MessageToast",
+                "sap/m/MessageBox"
+            ], function (Controller, JSONModel, MessageToast, MessageBox) {
+                "use strict";
+
+                // Register controller definition synchronously
+                Controller.extend("epa.controller.PatientSelection", {
+                    onInit: function () {
+                        var oModel = new JSONModel({
+                            recentPatients: []
+                        });
+                        this.getView().setModel(oModel, "app");
+
+                        // Load recent patients after a short delay
+                        var that = this;
+                        setTimeout(function () {
+                            that._loadRecentPatients();
+                        }, 500);
+                    },
+
+                    onSearch: function (oEvent) {
+                        var sQuery = oEvent.getParameter("query") || oEvent.getParameter("newValue");
+
+                        if (!sQuery || sQuery.trim() === "") {
+                            MessageToast.show("Please enter a KVNR");
+                            return;
+                        }
+
+                        if (!this._validateKVNR(sQuery)) {
+                            MessageBox.error("KVNR must be exactly 10 alphanumeric characters");
+                            return;
+                        }
+
+                        this._searchPatient(sQuery.trim());
+                    },
+
+                    _validateKVNR: function (sKvnr) {
+                        var kvnrRegex = /^[A-Z0-9]{10}$/;
+                        return kvnrRegex.test(sKvnr);
+                    },
+
+                    _searchPatient: function (sKvnr) {
+                        var that = this;
+                        fetch("/api/patients/search?kvnr=" + sKvnr)
+                            .then(function (response) {
+                                if (!response.ok) {
+                                    throw new Error("Patient not found");
+                                }
+                                return response.json();
+                            })
+                            .then(function (patient) {
+                                MessageToast.show("Found: " + patient.firstName + " " + patient.lastName);
+                                MessageBox.information(
+                                    "Patient found:\\n\\n" +
+                                    "Name: " + patient.firstName + " " + patient.lastName + "\\n" +
+                                    "KVNR: " + patient.kvnr + "\\n" +
+                                    "DOB: " + patient.dateOfBirth + "\\n\\n" +
+                                    "Full patient view with tabs will be implemented in the next iteration."
+                                );
+                                that._loadRecentPatients();
+                            })
+                            .catch(function (error) {
+                                MessageBox.error("Patient not found: " + error.message);
+                            });
+                    },
+
+                    _loadRecentPatients: function () {
+                        var that = this;
+                        var oView = this.getView();
+                        if (!oView) {
+                            setTimeout(function () { that._loadRecentPatients(); }, 100);
+                            return;
+                        }
+                        var oModel = oView.getModel("app");
+                        if (!oModel) {
+                            setTimeout(function () { that._loadRecentPatients(); }, 100);
+                            return;
+                        }
+                        fetch("/api/patients/recent")
+                            .then(function (response) { return response.json(); })
+                            .then(function (patients) {
+                                oModel.setProperty("/recentPatients", patients);
+                            })
+                            .catch(function (error) {
+                                console.error("Failed to load recent patients:", error);
+                            });
+                    },
+
+                    onRecentPatientSelect: function (oEvent) {
+                        var oSelectedItem = oEvent.getParameter("listItem");
+                        var oContext = oSelectedItem.getBindingContext("app");
+                        var oPatient = oContext.getObject();
+
+                        MessageBox.information(
+                            "Selected Patient:\\n\\n" +
+                            "Name: " + oPatient.firstName + " " + oPatient.lastName + "\\n" +
+                            "KVNR: " + oPatient.kvnr + "\\n" +
+                            "DOB: " + oPatient.dateOfBirth
+                        );
+                    },
+
+                    onReadEGKCard: function () {
+                        MessageBox.information(
+                            "eGK card reading will be implemented in Phase 6 (User Story 3).\\n\\n" +
+                            "For now, please use the search field to enter a KVNR manually:\\n" +
+                            "- X123456789 (Erika Mustermann)\\n" +
+                            "- Y987654321 (Max Beispiel)\\n" +
+                            "- Z555111222 (Anna Test)"
+                        );
+                    }
+                });
+
+                // Now create the view after controller is registered
+                sap.ui.require(["sap/ui/core/mvc/XMLView"], function (XMLView) {
+                    XMLView.create({
+                        viewContent: document.getElementById("patientSelectionView").innerHTML,
+                        definition: document.getElementById("patientSelectionView").innerHTML
+                    }).then(function (oView) {
+                        oView.placeAt("content");
+                    });
+                });
+            });
+        });
+    </script>
+
+    <script id="patientSelectionView" type="sapui5/xmlview">
+        <mvc:View controllerName="epa.controller.PatientSelection" 
+                  xmlns:mvc="sap.ui.core.mvc" 
+                  xmlns="sap.m" 
+                  xmlns:l="sap.ui.layout">
+            <App>
+                <pages>
+                    <Page title="ePA Medication Service">
+                        <content>
+                            <l:VerticalLayout class="sapUiContentPadding">
+                                
+                                <!-- Search Section -->
+                                <VBox class="sapUiMediumMarginBottom">
+                                    <Title text="Patient Search" level="H2" />
+                                    
+                                    <HBox class="sapUiSmallMarginTop" alignItems="Center">
+                                        <SearchField
+                                            id="kvnrSearchField"
+                                            placeholder="KVNR eingeben (z.B. X123456789)"
+                                            width="400px"
+                                            search=".onSearch"
+                                            class="sapUiSmallMarginEnd" />
+                                        
+                                        <Button
+                                            text="Read from eGK Card"
+                                            icon="sap-icon://credit-card"
+                                            press=".onReadEGKCard"
+                                            type="Emphasized" />
+                                    </HBox>
+                                </VBox>
+                                
+                                <!-- Recent Patients Section -->
+                                <VBox>
+                                    <Title text="Recent Patients" level="H2" />
+                                    
+                                    <List
+                                        id="recentPatientsList"
+                                        items="{app>/recentPatients}"
+                                        mode="SingleSelectMaster"
+                                        selectionChange=".onRecentPatientSelect">
+                                        
+                                        <StandardListItem
+                                            title="{app>firstName} {app>lastName}"
+                                            description="KVNR: {app>kvnr}"
+                                            info="{app>dateOfBirth}"
+                                            type="Navigation" />
+                                    </List>
+                                    
+                                    <Text
+                                        text="No recent patients"
+                                        visible="{= ${app>/recentPatients}.length === 0 }"
+                                        class="sapUiSmallMarginTop" />
+                                </VBox>
+                                
+                            </l:VerticalLayout>
+                        </content>
+                    </Page>
+                </pages>
+            </App>
+        </mvc:View>
+    </script>
+</head>
+
+<body class="sapUiBody" id="content">
+</body>
+
+</html>

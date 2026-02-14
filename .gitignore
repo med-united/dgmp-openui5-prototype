@@ -1,0 +1,60 @@
+# Build outputs
+target/
+build/
+dist/
+out/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+.mvn/wrapper/maven-wrapper.jar
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Node (for OpenUI5 development tools if used)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Test coverage
+coverage/
+*.coverage
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+.cache/
+
+# Application specific
+application-local.properties
+src/main/resources/application-local.yml

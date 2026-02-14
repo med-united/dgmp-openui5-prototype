@@ -1,0 +1,23 @@
+[
+    {
+        "kvnr": "X123456789",
+        "firstName": "Erika",
+        "lastName": "Mustermann",
+        "dateOfBirth": "1975-08-12",
+        "insuranceType": "GKV"
+    },
+    {
+        "kvnr": "Y987654321",
+        "firstName": "Max",
+        "lastName": "Beispiel",
+        "dateOfBirth": "1989-03-25",
+        "insuranceType": "GKV"
+    },
+    {
+        "kvnr": "Z555111222",
+        "firstName": "Anna",
+        "lastName": "Test",
+        "dateOfBirth": "1992-11-05",
+        "insuranceType": "PKV"
+    }
+]
