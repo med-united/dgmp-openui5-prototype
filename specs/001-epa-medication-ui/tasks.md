@@ -90,20 +90,20 @@ Per plan.md:
 
 ### Implementation forUser Story 1
 
-- [ ] T029 [P] [US1] Create MedicationEntry base model in src/main/java/de/servicehealth/epa/medication/model/MedicationEntry.java
-- [ ] T030 [P] [US1] Create MedicationListEntry model (extends MedicationEntry) in src/main/java/de/servicehealth/epa/medication/model/MedicationListEntry.java
-- [ ] T031 [P] [US1] Create MedicationList aggregate in src/main/java/de/servicehealth/epa/medication/model/MedicationList.java
-- [ ] T032 [P] [US1] Create medication-list-X123456789.json fixture with 5+ entries (mix of prescription/dispensement)
-- [ ] T033 [P] [US1] Create medication-list-Y987654321.json fixture with 2-3 entries
-- [ ] T034 [P] [US1] Create medication-list-Z555111222.json fixture (empty array)
-- [ ] T035 [US1] Create MedicationService in src/main/java/de/servicehealth/epa/medication/MedicationService.java with loadMedicationList method
-- [ ] T036 [US1] Create MedicationResource JAX-RS endpoint in src/main/java/de/servicehealth/epa/medication/MedicationResource.java
-- [ ] T037 [US1] Implement GET /api/medications/list/{kvnr} endpoint in MedicationResource.java
-- [ ] T038 [P] [US1] Create MedicationList.view.xml with table displaying eML entries
-- [ ] T039 [US1] Create MedicationList.controller.js with data loading and sorting logic
-- [ ] T040 [P] [US1] Add FR-001: Display in chronological order (newest first)
-- [ ] T041 [P] [US1] Add FR-002: Visual distinction for prescription vs dispensement (icon or badge)
-- [ ] T042 [P] [US1] Add empty state handling: display guidance when eML is empty (patient Z555111222)
+- [x] T029 [P] [US1] Create MedicationEntry base model in src/main/java/de/servicehealth/epa/medication/model/MedicationEntry.java
+- [x] T030 [P] [US1] Create MedicationListEntry model (extends MedicationEntry) in src/main/java/de/servicehealth/epa/medication/model/MedicationListEntry.java
+- [x] T031 [P] [US1] Create MedicationList aggregate in src/main/java/de/servicehealth/epa/medication/model/MedicationList.java
+- [x] T032 [P] [US1] Create medication-list-X123456789.json fixture with 5+ entries (mix of prescription/dispensement)
+- [x] T033 [P] [US1] Create medication-list-Y987654321.json fixture with 2-3 entries
+- [x] T034 [P] [US1] Create medication-list-Z555111222.json fixture (empty array)
+- [x] T035 [US1] Create MedicationService in src/main/java/de/servicehealth/epa/medication/MedicationService.java with loadMedicationList method
+- [x] T036 [US1] Create MedicationResource JAX-RS endpoint in src/main/java/de/servicehealth/epa/medication/MedicationResource.java
+- [x] T037 [US1] Implement GET /api/medications/list/{kvnr} endpoint in MedicationResource.java
+- [x] T038 [P] [US1] Create MedicationList.view.xml with table displaying eML entries
+- [x] T039 [US1] Create MedicationList.controller.js with data loading and sorting logic
+- [x] T040 [P] [US1] Add FR-001: Display in chronological order (newest first)
+- [x] T041 [P] [US1] Add FR-002: Visual distinction for prescription vs dispensement (icon or badge)
+- [x] T042 [P] [US1] Add empty state handling: display guidance when eML is empty (patient Z555111222)
 
 **Checkpoint**: eML view fully functional. Displays historical medications sorted chronologically with clear prescription/dispensement distinction.
 

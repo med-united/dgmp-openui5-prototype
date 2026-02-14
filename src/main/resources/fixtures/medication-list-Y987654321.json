@@ -1,0 +1,57 @@
+{
+    "kvnr": "Y987654321",
+    "entries": [
+        {
+            "id": "eml-y-001",
+            "entryType": "prescription",
+            "pzn": "00764973",
+            "medicationName": "Amoxicillin 500mg Kapseln",
+            "activeIngredient": "Amoxicillin",
+            "strength": "500mg",
+            "dosageStructured": "1-0-1-0",
+            "dosageText": "3x täglich 1 Kapsel für 7 Tage",
+            "intakeInstructions": "mit reichlich Wasser",
+            "indication": "Atemwegsinfekt",
+            "atcCode": "J01CA04",
+            "authoredDate": "2026-02-08T10:00:00",
+            "prescriber": "Dr. Weber, HNO-Arzt",
+            "pharmacy": null,
+            "linkedToPlanId": null
+        },
+        {
+            "id": "eml-y-002",
+            "entryType": "dispensement",
+            "pzn": "00764973",
+            "medicationName": "Amoxicillin 500mg Kapseln",
+            "activeIngredient": "Amoxicillin",
+            "strength": "500mg",
+            "dosageStructured": "1-0-1-0",
+            "dosageText": "3x täglich 1 Kapsel für 7 Tage",
+            "intakeInstructions": "mit reichlich Wasser",
+            "indication": "Atemwegsinfekt",
+            "atcCode": "J01CA04",
+            "authoredDate": "2026-02-08T15:30:00",
+            "pharmacy": "Apotheke am Markt",
+            "prescriber": null,
+            "linkedToPlanId": null
+        },
+        {
+            "id": "eml-y-003",
+            "entryType": "dispensement",
+            "pzn": "01318813",
+            "medicationName": "Paracetamol 500mg Tabletten",
+            "activeIngredient": "Paracetamol",
+            "strength": "500mg",
+            "dosageText": "Bei Bedarf bis zu 4x täglich 1-2 Tabletten",
+            "dosageStructured": "1-0-1-0",
+            "intakeInstructions": "mit Wasser",
+            "indication": "Fieber, Schmerzen",
+            "atcCode": "N02BE01",
+            "authoredDate": "2026-01-25T12:00:00",
+            "pharmacy": "Apotheke am Markt",
+            "prescriber": null,
+            "linkedToPlanId": null
+        }
+    ],
+    "lastUpdated": "2026-02-08T15:30:00"
+}

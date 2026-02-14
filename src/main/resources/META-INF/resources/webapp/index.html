@@ -68,14 +68,14 @@
                                 return response.json();
                             })
                             .then(function (patient) {
+                                var oModel = that.getView().getModel("app");
+                                oModel.setProperty("/currentPatient", patient);
+                                oModel.setProperty("/currentKVNR", patient.kvnr);
+
                                 MessageToast.show("Found: " + patient.firstName + " " + patient.lastName);
-                                MessageBox.information(
-                                    "Patient found:\\n\\n" +
-                                    "Name: " + patient.firstName + " " + patient.lastName + "\\n" +
-                                    "KVNR: " + patient.kvnr + "\\n" +
-                                    "DOB: " + patient.dateOfBirth + "\\n\\n" +
-                                    "Full patient view with tabs will be implemented in the next iteration."
-                                );
+
+                                // Load medication list for this patient
+                                that._loadMedicationList(patient.kvnr);
                                 that._loadRecentPatients();
                             })
                             .catch(function (error) {
@@ -125,6 +125,66 @@
                             "- X123456789 (Erika Mustermann)\\n" +
                             "- Y987654321 (Max Beispiel)\\n" +
                             "- Z555111222 (Anna Test)"
+                        );
+                    },
+
+                    // Medication List (eML) methods
+
+                    _loadMedicationList: function (sKvnr) {
+                        var that = this;
+                        var oModel = this.getView().getModel("app");
+
+                        fetch("/api/medications/list/" + sKvnr)
+                            .then(function (response) {
+                                if (!response.ok) {
+                                    throw new Error("Medication list not found");
+                                }
+                                return response.json();
+                            })
+                            .then(function (medicationList) {
+                                oModel.setProperty("/medicationList", medicationList);
+                                oModel.setProperty("/eMLVisible", true);
+
+                                if (medicationList.entries && medicationList.entries.length > 0) {
+                                    MessageToast.show("Loaded " + medicationList.entries.length + " medication entries");
+                                } else {
+                                    MessageToast.show("No medications found in eML");
+                                }
+                            })
+                            .catch(function (error) {
+                                console.error("Failed to load medication list:", error);
+                                oModel.setProperty("/medicationList", { entries: [] });
+                                oModel.setProperty("/eMLVisible", true);
+                            });
+                    },
+
+                    _formatEntryTypeIcon: function (entryType) {
+                        return entryType === "prescription" ? "sap-icon://document" : "sap-icon://product";
+                    },
+
+                    _formatDateTime: function (dateTimeStr) {
+                        if (!dateTimeStr) return "";
+                        var date = new Date(dateTimeStr);
+                        return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+                    },
+
+                    onMedicationRowSelect: function (oEvent) {
+                        var oItem = oEvent.getParameter("listItem");
+                        var oContext = oItem.getBindingContext("app");
+                        var oMed = oContext.getObject();
+
+                        MessageBox.information(
+                            "Medication Details:\\n\\n" +
+                            "Type: " + oMed.entryType + "\\n" +
+                            "Medication: " + oMed.medicationName + "\\n" +
+                            "Active Ingredient: " + oMed.activeIngredient + "\\n" +
+                            "Strength: " + (oMed.strength || "N/A") + "\\n" +
+                            "PZN: " + oMed.pzn + "\\n" +
+                            "Dosage: " + (oMed.dosageText || oMed.dosageStructured || "N/A") + "\\n" +
+                            "Indication: " + (oMed.indication || "N/A") + "\\n" +
+                            "Date: " + this._formatDateTime(oMed.authoredDate) + "\\n" +
+                            (oMed.prescriber ? "Prescriber: " + oMed.prescriber + "\\n" : "") +
+                            (oMed.pharmacy ? "Pharmacy: " + oMed.pharmacy + "\\n" : "")
                         );
                     }
                 });
@@ -193,6 +253,57 @@
                                     <Text
                                         text="No recent patients"
                                         visible="{= ${app>/recentPatients}.length === 0 }"
+                                        class="sapUiSmallMarginTop" />
+                                </VBox>
+                                
+                                <!-- Electronic Medication List (eML) Section -->
+                                <VBox visible="{app>/eMLVisible}" class="sapUiLargeMarginTop">
+                                    <Title text="Electronic Medication List (eML)" level="H2" class="sapUiMediumMarginBottom"/>
+                                    
+                                    <Text 
+                                        text="Historical prescriptions and dispensements, ordered by date (newest first)" 
+                                        class="sapUiSmallMarginBottom"/>
+                                    
+                                    <List
+                                        id="medicationList"
+                                        items="{app>/medicationList/entries}"
+                                        mode="SingleSelectMaster"
+                                        selectionChange=".onMedicationRowSelect"
+                                        noDataText="No medications found in eML">
+                                        
+                                        <CustomListItem>
+                                            <HBox alignItems="Center" justifyContent="SpaceBetween" width="100%">
+                                                <HBox alignItems="Center" width="70%">
+                                                    <!-- Entry Type Icon -->
+                                                    <core:Icon 
+                                                        xmlns:core="sap.ui.core"
+                                                        src="{= ${app>entryType} === 'prescription' ? 'sap-icon://document' : 'sap-icon://product' }"
+                                                        color="{= ${app>entryType} === 'prescription' ? '#0070F2' : '#107E3E' }"
+                                                        size="1.5rem"
+                                                        class="sapUiSmallMarginEnd"/>
+                                                    
+                                                    <VBox>
+                                                        <Text text="{app>medicationName}" class="sapUiSmallMarginBottom"/>
+                                                        <Text text="{app>activeIngredient} • {app>strength}" class="sapUiTinyText"/>
+                                                        <Text text="{= ${app>dosageText} || ${app>dosageStructured} || 'No dosage info' }" class="sapUiTinyText"/>
+                                                    </VBox>
+                                                </HBox>
+                                                
+                                                <VBox alignItems="End" width="30%">
+                                                    <Text text="{app>entryType}" class="sapUiSmallMarginBottom"/>
+                                                    <Text text="{path: 'app>authoredDate', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
+                                                    <Text 
+                                                        text="{= ${app>prescriber} || ${app>pharmacy} || '' }" 
+                                                        class="sapUiTinyText"/>
+                                                </VBox>
+                                            </HBox>
+                                        </CustomListItem>
+                                    </List>
+                                    
+                                    <!-- Empty State -->
+                                    <Text
+                                        text="No historical medications found for this patient"
+                                        visible="{= !${app>/medicationList/entries} || ${app>/medicationList/entries}.length === 0 }"
                                         class="sapUiSmallMarginTop" />
                                 </VBox>
                                 
