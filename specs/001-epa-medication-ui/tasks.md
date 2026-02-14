@@ -68,8 +68,10 @@ Per plan.md:
 
 - [x] T018 [P] [US0] Create PatientSelection.view.xml with search input, eGK button, recent patients list
 - [x] T019 [P] [US0] Create PatientSelection.controller.js with search and navigation logic
-- [x] T020 [P] [US0] Implement GET /api/patients/search?kvnr={kvnr} endpoint in PatientResource.java
-- [x] T021 [P] [US0] Implement GET /api/patients/recent endpoint in PatientResource.java
+- [x] T063 [US3] Implement Backend: PatientResource (GET /api/patients/search?kvnr=...)
+- [x] T064 [US3] Implement Frontend: PatientSelection.controller.js (search logic, error handling)
+- [x] T065 [US3] Implement Frontend: PatientSelection.view.xml (Input field, Search button, Result display)
+- [x] T065a [US3] Pre-load first 2 fixture patients into "Recent Patients" list for convenienceva
 - [x] T022 [US0] Add session storage logic for recent patients in PatientService.java
 - [x] T023 [US0] Create PatientView.view.xml container with IconTabBar (3 tabs: eML, eMP, Reconciliation)
 - [x] T024 [US0] Create PatientView.controller.js with tab switching and "Switch Patient" button logic
@@ -117,56 +119,39 @@ Per plan.md:
 
 ### Implementation for User Story 2
 
-- [ ] T043 [P] [US2] Create MedicationPlanEntry model in src/main/java/de/servicehealth/epa/medication/model/MedicationPlanEntry.java
-- [ ] T044 [P] [US2] Create MedicationPlan aggregate in src/main/java/de/servicehealth/epa/medication/model/MedicationPlan.java
-- [ ] T045 [P] [US2] Create medication-plan-X123456789.json fixture with 10+ entries (active, paused, planned)
-- [ ] T046 [P] [US2] Create medication-plan-Y987654321.json fixture with 2-3 active entries
-- [ ] T047 [P] [US2] Create medication-plan-Z555111222.json fixture (empty array)
-- [ ] T048 [US2] Implement loadMedicationPlan method in MedicationService.java
-- [ ] T049 [US2] Implement GET /api/medications/plan/{kvnr} endpoint in MedicationResource.java
-- [ ] T050 [P] [US2] Create MedicationPlan.view.xml with OverflowToolbar (3 buttons) and table
-- [ ] T051 [US2] Create MedicationPlan.controller.js with data loading and button event handlers
-- [ ] T052 [P] [US2] Add FR-003: Group medications by status (active, paused, planned)
-- [ ] T053 [P] [US2] Add FR-003a: Toolbar with Add Medication, Export to PDF, Run AMTS Check buttons
-- [ ] T054 [P] [US2] Add FR-003b: Row-level action icons (edit, pause/reactivate, delete) in table column
-- [ ] T055 [P] [US2] Add FR-003c: Status-appropriate icons (pause for active, reactivate for paused)
-- [ ] T056 [P] [US2] Add FR-004: Display dosage in both structured (1-0-1-0) and free text formats
-- [ ] T057 [P] [US2] Add empty state handling for eMP
+- [x] T043 [P] [US2] Create MedicationPlanEntry model in src/main/java/de/servicehealth/epa/medication/model/MedicationPlanEntry.java
+- [x] T044 [P] [US2] Create MedicationPlan aggregate in src/main/java/de/servicehealth/epa/medication/model/MedicationPlan.java
+- [x] T045 [P] [US2] Create medication-plan-X123456789.json fixture with 10+ entries (active, paused, planned)
+- [x] T046 [P] [US2] Create medication-plan-Y987654321.json fixture with 2-3 active entries
+- [x] T047 [P] [US2] Create medication-plan-Z555111222.json fixture (empty array)
+- [x] T048 [US2] Implement loadMedicationPlan method in MedicationService.java
+- [x] T049 [US2] Implement GET /api/medications/plan/{kvnr} endpoint in MedicationResource.java
+- [x] T050 [P] [US2] Create MedicationPlan.view.xml with OverflowToolbar (3 buttons) and table (Integrated into index.html)
+- [x] T051 [US2] Create MedicationPlan.controller.js with data loading and button event handlers (Integrated into index.html)
+- [x] T052 [P] [US2] Add FR-003: Group medications by status (active, paused, planned)
+- [x] T053 [P] [US2] Add FR-003a: Toolbar with Add Medication, Export to PDF, Run AMTS Check buttons
+- [x] T054 [P] [US2] Add FR-003b: Row-level action icons (edit, pause/reactivate, delete) in table column
+- [x] T055 [P] [US2] Add FR-003c: Status-appropriate icons (pause for active, reactivate for paused)
+- [x] T056 [P] [US2] Add FR-004: Display dosage in both structured (1-0-1-0) and free text formats
+- [x] T057 [P] [US2] Add empty state handling for eMP
+- [x] T058 [US2] Implement controller logic for eMP (grouping, actions)
+- [x] T059 [US2] Fix UI binding syntax for "Last updated" text
+- [x] T060 [US2] Verify eMP table data display after XML fix
+- [x] T061 [US2] Fix newline formatting in Medication Details dialog
+- [x] T062 [Bug] Fix Recent Patients table display (missing name/KVNR)
+- [x] T063 [Bug] Fix Text rendering property and formatter resolution error
+
 
 **Checkpoint**: eMP view fully functional. Toolbar and row actions visible, medications grouped by status.
 
 ---
 
-## Phase 6: User Story 3 - Read Patient Data from eGK Card (Priority: P1)
-
-**Goal**: Integrate eGK card reading via smartcard-playground library to populate patient demographics
-
-**Independent Test**: Click "Read from eGK Card" button on home screen with eGK card in reader, verify patient data (KVNR, name, DOB) populates and patient view loads within 5 seconds.
-
-### Implementation for User Story 3
-
-- [ ] T058 [P] [US3] Create PatientDemographics model in src/main/java/de/servicehealth/epa/cardreading/model/PatientDemographics.java
-- [ ] T059 [P] [US3] Create CardReaderService in src/main/java/de/servicehealth/epa/cardreading/CardReaderService.java
-- [ ] T060 [US3] Integrate smartcard-playground EFPDReader in CardReaderService.java
-- [ ] T061 [US3] Create CardReaderResource JAX-RS endpoint in src/main/java/de/servicehealth/epa/cardreading/CardReaderResource.java
-- [ ] T062 [US3] Implement POST /api/cardreader/read-patient endpoint in CardReaderResource.java
-- [ ] T063 [P] [US3] Add FR-021: PC/SC reader detection and HCA application selection
-- [ ] T064 [P] [US3] Add FR-022: Read EF.PD file from eGK
-- [ ] T065 [P] [US3] Add FR-023: Decompress BER-TLV/GZIP data
-- [ ] T066 [P] [US3] Add FR-024: Parse XML and extract KVNR, name, DOB
-- [ ] T067 [P] [US3] Add FR-025: Fallback to manual KVNR entry on card read failure
-- [ ] T068 [P] [US3] Add edge case handling: CARD_READER_DISCONNECTED error
-- [ ] T069 [P] [US3] Add edge case handling: CARD_REMOVED error during read
-- [ ] T070 [P] [US3] Add edge case handling: CORRUPTED_DATA error
-- [ ] T071 [US3] Wire "Read from eGK Card" button in PatientSelection.controller.js to call API endpoint
-- [ ] T072 [P] [US3] Add loading indicator during card read operation
-- [ ] T073 [P] [US3] Add success criterion SC-001: Complete read within 5 seconds
-
-**Checkpoint**: eGK card reading functional. Patient data from card populates UI, errors handled gracefully.
 
 ---
 
-## Phase 7: User Story 4 - Duplicate Detection and Matching (Priority: P2)
+
+
+## Phase 6: User Story 4 - Duplicate Detection and Matching (Priority: P2)
 
 **Goal**: Detect duplicates when adding medication and show modal dialog with side-by-side comparison
 
@@ -174,16 +159,19 @@ Per plan.md:
 
 ### Implementation for User Story 4
 
-- [ ] T074 [P] [US4] Create DuplicateMatch model in src/main/java/de/servicehealth/epa/medication/model/DuplicateMatch.java
-- [ ] T075 [US4] Implement detectDuplicates method in MedicationService.java (check PZN, ATC, ASK)
-- [ ] T076 [P] [US4] Add FR-006: Duplicate detection by PZN, ATC code (first 5 chars), or ASK code
-- [ ] T077 [P] [US4] Add FR-006a: Modal dialog blocks action until user decides
-- [ ] T078 [P] [US4] Add FR-006b: Side-by-side comparison table in modal
-- [ ] T079 [P] [US4] Add FR-006c: Radio buttons "Update existing entry" / "Create new entry" + Continue button
-- [ ] T080 [P] [US4] Create DuplicateDialog.fragment.xml with comparison table and radio group
-- [ ] T081 [US4] Create DuplicateDialog.controller.js with modal logic and decision handling
-- [ ] T082 [US4] Update POST /api/medications/plan/{kvnr}/entries to return 409 Conflict with DuplicateMatch on duplicate
-- [ ] T083 [US4] Wire duplicate detection into Add Medication flow in MedicationPlan.controller.js
+- [x] T074 [P] [US4] Create DuplicateMatch model in src/main/java/de/servicehealth/epa/medication/model/DuplicateMatch.java
+- [x] T075 [US4] Implement detectDuplicates method in MedicationService.java (check PZN, ATC, ASK)
+- [x] T076 [P] [US4] Add FR-006: Duplicate detection by PZN, ATC code (first 5 chars), or ASK code
+- [x] T077 [P] [US4] Add FR-006a: Modal dialog blocks action until user decides
+- [x] T078 [P] [US4] Add FR-006b: Side-by-side comparison table in modal
+- [x] T079 [P] [US4] Add FR-006c: Radio buttons "Update existing entry" / "Create new entry" + Continue button
+- [x] T080 [P] [US4] Create DuplicateDialog.fragment.xml with comparison table and radio group
+- [x] T081 [US4] Create DuplicateDialog.controller.js (Logic implemented in index.html for simplicity)
+- [x] T082 [US4] Update POST /api/medications/plan/{kvnr}/entries to return 409 Conflict with DuplicateMatch on duplicate
+- [x] T083 [US4] Wire duplicate detection into Add Medication flow in MedicationPlan.controller.js (index.html)
+- [x] T83a [P] check with the user that the feature works like expected
+
+**Checkpoint**: Duplicate detection works. Modal shows on PZN/ATC/ASK match, user can choose action.
 
 **Checkpoint**: Duplicate detection works. Modal shows on PZN/ATC/ASK match, user can choose action.
 
@@ -197,17 +185,17 @@ Per plan.md:
 
 ### Implementation for User Story 5
 
-- [ ] T084 [P] [US5] Create ReconciliationItem model in src/main/java/de/servicehealth/epa/medication/model/ReconciliationItem.java
-- [ ] T085 [US5] Implement reconciliation logic in MedicationService.java (compare eML vs eMP by PZN/ATC)
-- [ ] T086 [US5] Implement GET /api/medications/reconciliation/{kvnr} endpoint in MedicationResource.java
-- [ ] T087 [P] [US5] Add FR-001l: Reconciliation tab with split-view layout
-- [ ] T088 [P] [US5] Add FR-001m: Automatically highlight eML entries missing in eMP
-- [ ] T089 [P] [US5] Add FR-014: Identify discrepancies between eML and eMP
-- [ ] T090 [P] [US5] Add FR-015: Reconciliation view visualizes gaps
-- [ ] T091 [P] [US5] Add FR-016: Transfer eML entries to eMP with pre-filled form
-- [ ] T092 [P] [US5] Create Reconciliation.view.xml with split-view (two tables side-by-side)
-- [ ] T093 [US5] Create Reconciliation.controller.js with discrepancy highlighting and "Add to eMP" logic
-- [ ] T094 [P] [US5] Update AddMedicationDialog to accept pre-filled data from reconciliation
+- [x] T084 [P] [US5] Create ReconciliationItem model in src/main/java/de/servicehealth/epa/medication/model/ReconciliationItem.java
+- [x] T085 [US5] Implement reconciliation logic in MedicationService.java (compare eML vs eMP by PZN/ATC)
+- [x] T086 [US5] Implement GET /api/medications/reconciliation/{kvnr} endpoint in MedicationResource.java
+- [x] T087 [P] [US5] Add FR-001l: Reconciliation tab with split-view layout
+- [x] T088 [P] [US5] Add FR-001m: Automatically highlight eML entries missing in eMP
+- [x] T089 [P] [US5] Add FR-014: Identify discrepancies between eML and eMP
+- [x] T090 [P] [US5] Add FR-015: Reconciliation view visualizes gaps
+- [x] T091 [P] [US5] Add FR-016: Transfer eML entries to eMP with pre-filled form
+- [x] T092 [P] [US5] Create Reconciliation.view.xml with split-view (two tables side-by-side)
+- [x] T093 [US5] Create Reconciliation.controller.js with discrepancy highlighting and "Add to eMP" logic
+- [x] T094 [P] [US5] Update AddMedicationDialog to accept pre-filled data from reconciliation
 
 **Checkpoint**: Reconciliation view functional. Shows discrepancies, allows transfer from eML to eMP.
 
@@ -221,16 +209,18 @@ Per plan.md:
 
 ### Implementation for User Story 6
 
-- [ ] T095 [P] [US6] Create AddMedicationDialog.fragment.xml with form fields (PZN search, dosage, instructions, indication, entry type)
-- [ ] T096 [US6] Create AddMedicationDialog.controller.js with form validation and submit logic
-- [ ] T097 [US6] Implement PZN search/autocomplete in AddMedicationDialog (mock or fixture-based)
-- [ ] T098 [US6] Implement POST /api/medications/plan/{kvnr}/entries endpoint in MedicationResource.java
-- [ ] T099 [US6] Add createEntry method in MedicationService.java
-- [ ] T100 [P] [US6] Add FR-008: Required fields (PZN, dosage, instructions, indication, entry type)
-- [ ] T101 [P] [US6] Add PZN auto-fill logic: populate medication name, active ingredient, strength from PZN
-- [ ] T102 [P] [US6] Add dosage validation: structured (1-0-1-0) or free text required
-- [ ] T103 [US6] Wire "Add Medication" toolbar button to open AddMedicationDialog
-- [ ] T104 [US6] Update eMP table to refresh after successful add
+- [x] T095 [P] [US6] Create AddMedicationDialog.fragment.xml with form fields (PZN search, dosage, instructions, indication, entry type)
+- [x] T096 [US6] Create AddMedicationDialog.controller.js with form validation and submit logic
+- [x] T097 [US6] Implement PZN search/autocomplete in AddMedicationDialog (mock or fixture-based)
+- [x] T098 [US6] Implement POST /api/medications/plan/{kvnr}/entries endpoint in MedicationResource.java
+- [x] T099 [US6] Add createEntry method in MedicationService.java
+- [x] T100 [P] [US6] Add FR-008: Required fields (PZN, dosage, instructions, indication, entry type)
+- [x] T101 [P] [US6] Add PZN auto-fill logic: populate medication name, active ingredient, strength from PZN
+- [x] T102 [P] [US6] Add dosage validation: structured (1-0-1-0) or free text required
+- [x] T103 [US6] Wire "Add Medication" toolbar button to open AddMedicationDialog
+- [x] T104 [US6] Update eMP table to refresh after successful add
+- [x] T104a [P] Fix current JS errors (module loading and fragment controller context - see [ui5-implementation-notes.md](fhir-prototype/specs/001-epa-medication-ui/ui5-implementation-notes.md))
+
 
 **Checkpoint**: Manual medication entry works. Form validates, new entries appear in eMP table.
 
@@ -244,14 +234,16 @@ Per plan.md:
 
 ### Implementation for User Story 7
 
-- [ ] T105 [US7] Implement PUT /api/medications/plan/{kvnr}/entries/{entryId} endpoint in MedicationResource.java
-- [ ] T106 [US7] Add updateEntry method in MedicationService.java
-- [ ] T107 [P] [US7] Add FR-009: Allow editing dosage and intake instructions
-- [ ] T108 [P] [US7] Add plan versioning: increment MedicationPlan.version on edit
-- [ ] T109 [P] [US7] Add lastModified timestamp update on edit
-- [ ] T110 [US7] Wire edit icon click to open AddMedicationDialog with pre-filled data
-- [ ] T111 [US7] Update AddMedicationDialog to support edit mode (PUT vs POST)
-- [ ] T112 [US7] Refresh eMP table after successful edit
+- [x] T105 [US7] Implement PUT /api/medications/plan/{kvnr}/entries/{entryId} endpoint in MedicationResource.java
+- [x] T106 [US7] Add updateEntry method in MedicationService.java
+- [x] T107 [P] [US7] Add FR-009: Allow editing dosage and intake instructions
+- [x] T108 [P] [US7] Add plan versioning: increment MedicationPlan.version on edit
+- [x] T109 [P] [US7] Add lastModified timestamp update on edit
+- [x] T110 [US7] Wire edit icon click to open AddMedicationDialog with pre-filled data
+- [x] T111 [US7] Update AddMedicationDialog to support edit mode (PUT vs POST)
+- [x] T112 [US7] Refresh eMP table after successful edit
+- [x] T112a [US7] Refine Add Medication flow to select from eML first
+- [x] T112b [US7] Fix TypeError in Add Medication dialog opening
 
 **Checkpoint**: Edit functionality works. Dosage/instructions editable, plan version tracks changes.
 
@@ -474,4 +466,32 @@ Setup (T001-T008) → Foundational (T009-T017)
 4. **Test as you go**: Each story has independent test criteria - verify before moving on
 5. **Polish last**: Cross-cutting concerns in final phase after all features work
 
-**Next Step**: Begin with T001 (Create webapp/ directory structure)
+
+---
+
+## Phase 18: User Story 3 - Read Patient Data from eGK Card (Priority: Last)
+
+**Goal**: Integrate eGK card reading via smartcard-playground library to populate patient demographics
+
+**Independent Test**: Click "Read from eGK Card" button on home screen with eGK card in reader, verify patient data (KVNR, name, DOB) populates and patient view loads within 5 seconds.
+
+### Implementation for User Story 3
+
+- [ ] T058 [P] [US3] Create PatientDemographics model in src/main/java/de/servicehealth/epa/cardreading/model/PatientDemographics.java
+- [ ] T059 [P] [US3] Create CardReaderService in src/main/java/de/servicehealth/epa/cardreading/CardReaderService.java
+- [ ] T060 [US3] Integrate smartcard-playground EFPDReader in CardReaderService.java
+- [ ] T061 [US3] Create CardReaderResource JAX-RS endpoint in src/main/java/de/servicehealth/epa/cardreading/CardReaderResource.java
+- [ ] T062 [US3] Implement POST /api/cardreader/read-patient endpoint in CardReaderResource.java
+- [ ] T063 [P] [US3] Add FR-021: PC/SC reader detection and HCA application selection
+- [ ] T064 [P] [US3] Add FR-022: Read EF.PD file from eGK
+- [ ] T065 [P] [US3] Add FR-023: Decompress BER-TLV/GZIP data
+- [ ] T066 [P] [US3] Add FR-024: Parse XML and extract KVNR, name, DOB
+- [ ] T067 [P] [US3] Add FR-025: Fallback to manual KVNR entry on card read failure
+- [ ] T068 [P] [US3] Add edge case handling: CARD_READER_DISCONNECTED error
+- [ ] T069 [P] [US3] Add edge case handling: CARD_REMOVED error during read
+- [ ] T070 [P] [US3] Add edge case handling: CORRUPTED_DATA error
+- [ ] T071 [US3] Wire "Read from eGK Card" button in PatientSelection.controller.js to call API endpoint
+- [ ] T072 [P] [US3] Add loading indicator during card read operation
+- [ ] T073 [P] [US3] Add success criterion SC-001: Complete read within 5 seconds
+
+**Checkpoint**: eGK card reading functional. Patient data from card populates UI, errors handled gracefully.

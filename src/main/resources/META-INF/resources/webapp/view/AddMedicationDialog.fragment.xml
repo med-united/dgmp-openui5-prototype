@@ -1,0 +1,73 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:l="sap.ui.layout"
+    xmlns:f="sap.ui.layout.form">
+    <Dialog
+        id="addMedicationDialog"
+        title="Add Medication"
+        class="sapUiContentPadding">
+        <content>
+            <f:SimpleForm
+                editable="true"
+                layout="ResponsiveGridLayout"
+                labelSpanXL="3"
+                labelSpanL="3"
+                labelSpanM="3"
+                labelSpanS="12"
+                adjustLabelSpan="false"
+                emptySpanXL="4"
+                emptySpanL="4"
+                emptySpanM="4"
+                emptySpanS="0"
+                columnsXL="1"
+                columnsL="1"
+                columnsM="1"
+                singleContainerFullSize="false">
+                <f:content>
+                    <Label text="PZN (Search)" required="true" />
+                    <SearchField id="inputPZN" placeholder="Search PZN (e.g. 12345678)" search=".onPZNSearch" width="100%" />
+
+                    <Label text="Medication Name" required="true" />
+                    <Input id="inputMedicationName" placeholder="e.g. Ibuprofen" />
+
+                    <Label text="Active Ingredient" />
+                    <Input id="inputActiveIngredient" placeholder="e.g. Ibuprofen" />
+
+                    <Label text="Strength" />
+                    <Input id="inputStrength" placeholder="e.g. 400mg" />
+                    
+                    <Label text="Entry Type" />
+                    <Select id="selectEntryType" selectedKey="manual">
+                        <items>
+                            <core:Item key="manual" text="Manual Entry" />
+                            <core:Item key="prescription" text="Prescription" />
+                            <core:Item key="dispensement" text="Dispensement" />
+                        </items>
+                    </Select>
+
+                    <Label text="Dosage (Structured)" />
+                    <Input id="inputDosageStructured" placeholder="e.g. 1-0-1-0" />
+
+                    <Label text="Dosage (Text)" />
+                    <Input id="inputDosageText" placeholder="e.g. 1 tablet when needed" />
+
+                    <Label text="Intake Instructions" />
+                    <Input id="inputInstructions" placeholder="e.g. with water" />
+                    
+                    <Label text="Indication" />
+                    <Input id="inputIndication" placeholder="e.g. Pain" />
+
+                    <Label text="Note" />
+                    <TextArea id="inputNote" rows="3" />
+                </f:content>
+            </f:SimpleForm>
+        </content>
+        <beginButton>
+            <Button text="Save" type="Emphasized" press=".onSaveMedication" />
+        </beginButton>
+        <endButton>
+            <Button text="Cancel" press=".onCancelMedication" />
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>

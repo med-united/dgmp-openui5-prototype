@@ -1,0 +1,66 @@
+{
+    "kvnr": "X123456789",
+    "version": 1,
+    "lastUpdated": "2026-02-14T10:00:00Z",
+    "entries": [
+        {
+            "id": "emp-x-001",
+            "status": "active",
+            "pzn": "00885967",
+            "medicationName": "Ramipril 5mg Tabletten",
+            "activeIngredient": "Ramipril",
+            "strength": "5mg",
+            "dosageStructured": "1-0-1-0",
+            "intakeInstructions": "morgens mit Wasser",
+            "indication": "Bluthochdruck",
+            "atcCode": "C09AA05",
+            "authoredDate": "2026-01-01T09:00:00Z",
+            "entrySource": "prescription"
+        },
+        {
+            "id": "emp-x-002",
+            "status": "active",
+            "pzn": "02626910",
+            "medicationName": "Metformin 500mg Filmtabletten",
+            "activeIngredient": "Metformin",
+            "strength": "500mg",
+            "dosageStructured": "1-0-1-0",
+            "intakeInstructions": "zu den Mahlzeiten",
+            "indication": "Diabetes mellitus Typ 2",
+            "atcCode": "A10BA02",
+            "authoredDate": "2026-01-15T14:00:00Z",
+            "entrySource": "prescription"
+        },
+        {
+            "id": "emp-x-003",
+            "status": "paused",
+            "pzn": "03707132",
+            "medicationName": "Ibuprofen 400mg Filmtabletten",
+            "activeIngredient": "Ibuprofen",
+            "strength": "400mg",
+            "dosageText": "Bei Bedarf 1-2 Tabletten",
+            "intakeInstructions": "max 3x täglich",
+            "indication": "Schmerzen",
+            "atcCode": "M01AE01",
+            "authoredDate": "2026-02-01T10:00:00Z",
+            "entrySource": "manual",
+            "reasonForPause": "Magenbeschwerden",
+            "note": "Patient verträgt es aktuell nicht gut"
+        },
+        {
+            "id": "emp-x-004",
+            "status": "planned",
+            "pzn": "07240651",
+            "medicationName": "Aspirin 100mg Tabletten",
+            "activeIngredient": "Acetylsalicylsäure",
+            "strength": "100mg",
+            "dosageStructured": "1-0-0-0",
+            "intakeInstructions": "morgens nüchtern",
+            "indication": "Herzinfarktprophylaxe",
+            "atcCode": "B01AC06",
+            "authoredDate": "2026-02-10T11:00:00Z",
+            "entrySource": "scanned_document",
+            "note": "Beginn nach nächstem Kardiologen-Termin"
+        }
+    ]
+}

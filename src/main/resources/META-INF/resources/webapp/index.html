@@ -8,7 +8,7 @@
 
     <script id="sap-ui-bootstrap" src="https://openui5.hana.ondemand.com/resources/sap-ui-core.js"
         data-sap-ui-theme="sap_horizon" data-sap-ui-libs="sap.m,sap.ui.layout" data-sap-ui-async="true"
-        data-sap-ui-resourceroots='{"epa": "./"}'>
+        data-sap-ui-bindingSyntax="complex" data-sap-ui-compatVersion="edge" data-sap-ui-resourceroots='{"epa": "./"}'>
         </script>
 
     <script>
@@ -18,12 +18,16 @@
                 "sap/ui/core/mvc/Controller",
                 "sap/ui/model/json/JSONModel",
                 "sap/m/MessageToast",
-                "sap/m/MessageBox"
-            ], function (Controller, JSONModel, MessageToast, MessageBox) {
+                "sap/m/MessageBox",
+                "epa/model/formatter",
+                "sap/ui/core/Fragment"
+            ], function (Controller, JSONModel, MessageToast, MessageBox, formatter, Fragment) {
                 "use strict";
 
                 // Register controller definition synchronously
                 Controller.extend("epa.controller.PatientSelection", {
+                    formatter: formatter,
+
                     onInit: function () {
                         var oModel = new JSONModel({
                             recentPatients: []
@@ -50,12 +54,22 @@
                             return;
                         }
 
-                        this._searchPatient(sQuery.trim());
-                    },
+                        this.getView().getModel("app").setProperty("/currentKVNR", sQuery);
+                        this.getView().getModel("app").setProperty("/patientSelected", true);
+                        this._addToRecentPatients(sQuery);
 
+                        // Load data
+                        this._loadMedicationPlan(sQuery);
+                        this._loadMedicationList(sQuery);
+                        this._loadReconciliation(sQuery);
+                    },
                     _validateKVNR: function (sKvnr) {
                         var kvnrRegex = /^[A-Z0-9]{10}$/;
                         return kvnrRegex.test(sKvnr);
+                    },
+
+                    _addToRecentPatients: function (sKvnr) {
+                        this._searchPatient(sKvnr);
                     },
 
                     _searchPatient: function (sKvnr) {
@@ -109,13 +123,17 @@
                         var oSelectedItem = oEvent.getParameter("listItem");
                         var oContext = oSelectedItem.getBindingContext("app");
                         var oPatient = oContext.getObject();
+                        var oModel = this.getView().getModel("app");
 
-                        MessageBox.information(
-                            "Selected Patient:\\n\\n" +
-                            "Name: " + oPatient.firstName + " " + oPatient.lastName + "\\n" +
-                            "KVNR: " + oPatient.kvnr + "\\n" +
-                            "DOB: " + oPatient.dateOfBirth
-                        );
+                        oModel.setProperty("/currentPatient", oPatient);
+                        oModel.setProperty("/currentKVNR", oPatient.kvnr);
+                        oModel.setProperty("/patientSelected", true);
+
+                        MessageToast.show("Loaded: " + oPatient.firstName + " " + oPatient.lastName);
+
+                        // Load data
+                        this._loadMedicationList(oPatient.kvnr);
+                        this._loadMedicationPlan(oPatient.kvnr);
                     },
 
                     onReadEGKCard: function () {
@@ -130,11 +148,293 @@
 
                     // Medication List (eML) methods
 
+                    _loadMedicationPlan: function (sKvnr) {
+                        var that = this;
+                        var oModel = this.getView().getModel("app");
+
+                        fetch("/api/medications/plan/" + sKvnr)
+                            .then(function (response) {
+                                if (!response.ok) {
+                                    throw new Error("Medication plan not found");
+                                }
+                                return response.json();
+                            })
+                            .then(function (medicationPlan) {
+                                oModel.setProperty("/medicationPlan", medicationPlan);
+                            })
+                            .catch(function (error) {
+                                console.error("Failed to load medication plan:", error);
+                                oModel.setProperty("/medicationPlan", { entries: [] });
+                            });
+                    },
+
+                    _getAddMedicationDialog: function () {
+                        var that = this;
+                        return new Promise(function (resolve) {
+                            sap.ui.require(["epa/controller/AddMedicationDialog.controller"], function (AddMedicationDialogController) {
+                                if (!that._pAddMedicationDialog) {
+                                    var oDialogController = new AddMedicationDialogController();
+                                    that._oAddMedicationController = oDialogController;
+
+                                    that._pAddMedicationDialog = Fragment.load({
+                                        id: that.getView().getId(),
+                                        name: "epa.view.AddMedicationDialog",
+                                        controller: oDialogController
+                                    }).then(function (oDialog) {
+                                        that.getView().addDependent(oDialog);
+                                        oDialogController.getView = function () { return that.getView(); };
+                                        return oDialog;
+                                    });
+                                }
+                                resolve(that._pAddMedicationDialog);
+                            });
+                        });
+                    },
+
+                    onAddMedication: function () {
+                        var that = this;
+                        var oModel = this.getView().getModel("app");
+                        var sKvnr = oModel.getProperty("/currentKVNR");
+
+                        // Load eML first
+                        this._loadMedicationList(sKvnr).then(function () {
+                            // Open Selection Dialog
+                            that._getMedicationSelectionDialog().then(function (oDialog) {
+                                oDialog.open();
+                            });
+                        });
+                    },
+
+                    onEditMedication: function (oEvent) {
+                        var oItem = oEvent.getSource().getParent().getParent();
+                        var oContext = oItem.getBindingContext("app");
+                        var oEntry = oContext.getObject();
+                        var that = this;
+
+                        this._getAddMedicationDialog().then(function (oDialog) {
+                            if (that._oAddMedicationController) {
+                                that._oAddMedicationController.setEditMode(oEntry.id, oEntry);
+                            }
+                            oDialog.open();
+                        });
+                    },
+
+                    // Helper for Medication Selection Dialog
+                    _getMedicationSelectionDialog: function () {
+                        var that = this;
+                        return new Promise(function (resolve) {
+                            if (!that._pMedicationSelectionDialog) {
+                                that._pMedicationSelectionDialog = Fragment.load({
+                                    id: that.getView().getId(),
+                                    name: "epa.view.MedicationSelectionDialog",
+                                    controller: that
+                                }).then(function (oDialog) {
+                                    that.getView().addDependent(oDialog);
+                                    return oDialog;
+                                });
+                            }
+                            resolve(that._pMedicationSelectionDialog);
+                        });
+                    },
+
+                    onSelectionCancel: function () {
+                        this.byId("medicationSelectionDialog").close();
+                    },
+
+                    onManualEntry: function () {
+                        this.byId("medicationSelectionDialog").close();
+                        this._openAddDialog();
+                    },
+
+                    onMedicationSelectionChange: function (oEvent) {
+                        var oItem = oEvent.getParameter("listItem");
+                        var oContext = oItem.getBindingContext("app");
+                        var oEntry = oContext.getObject();
+
+                        this.byId("medicationSelectionDialog").close();
+                        this._openAddDialog(oEntry);
+                    },
+
+                    onMedicationHistorySearch: function (oEvent) {
+                        var sQuery = oEvent.getParameter("query");
+                        var oFilter = new sap.ui.model.Filter("medicationName", sap.ui.model.FilterOperator.Contains, sQuery);
+                        var oBinding = this.byId("selectionTable").getBinding("items");
+                        oBinding.filter([oFilter]);
+                    },
+
+                    _openAddDialog: function (oPreFillData) {
+                        var that = this;
+                        this._getAddMedicationDialog().then(function (oDialog) {
+                            if (that._oAddMedicationController) {
+                                that._oAddMedicationController.clearEditMode();
+                            }
+
+                            if (oPreFillData) {
+                                that._preFillAddDialog(oPreFillData);
+                            }
+
+                            oDialog.open();
+                        });
+                    },
+
+                    _preFillAddDialog: function (oData) {
+                        var sViewId = this.getView().getId();
+                        var setValue = function (sId, sVal) {
+                            var oControl = sap.ui.getCore().byId(sViewId + "--" + sId);
+                            if (oControl) oControl.setValue(sVal || "");
+                        };
+
+                        setValue("inputMedicationName", oData.medicationName);
+                        setValue("inputPZN", oData.pzn);
+                        setValue("inputStrength", oData.strength);
+                        setValue("inputActiveIngredient", oData.activeIngredient);
+                        setValue("inputDosageStructured", oData.dosageStructured);
+                        setValue("inputDosageText", oData.dosageText);
+                        setValue("inputInstructions", oData.intakeInstructions);
+                        setValue("inputIndication", oData.indication);
+                    },
+
+
+
+                    _handleDuplicateResponse: function (match, retryCallback) {
+                        var oView = this.getView();
+                        var that = this;
+
+                        // Load duplicate dialog if needed
+                        if (!this._pDuplicateDialog) {
+                            this._pDuplicateDialog = Fragment.load({
+                                id: oView.getId(),
+                                name: "epa.view.DuplicateDialog",
+                                controller: this
+                            }).then(function (oDialog) {
+                                oView.addDependent(oDialog);
+                                return oDialog;
+                            });
+                        }
+
+                        this._pDuplicateDialog.then(function (oDialog) {
+                            // Set data
+                            var oDuplicateModel = new JSONModel({
+                                existingEntry: match.existingEntry,
+                                newEntry: {
+                                    medicationName: oView.byId("inputMedicationName").getValue(),
+                                    pzn: oView.byId("inputPZN").getValue(),
+                                    dosageStructured: oView.byId("inputDosageStructured").getValue(),
+                                    dosageText: oView.byId("inputDosageText").getValue()
+                                }
+                            });
+                            oDialog.setModel(oDuplicateModel, "duplicate");
+
+                            // Store retry callback
+                            that._retryAddEntry = retryCallback;
+
+                            oDialog.open();
+                        });
+                    },
+
+                    onConfirmDuplicate: function () {
+                        // User chose to create new entry (ignore duplicates)
+                        var oDialog = this.byId("duplicateDialog");
+                        oDialog.close();
+
+                        if (this._retryAddEntry) {
+                            this._retryAddEntry(true); // Retry with ignoreDuplicates=true
+                            this._retryAddEntry = null;
+                        }
+                    },
+
+                    onCancelDuplicate: function () {
+                        var oDialog = this.byId("duplicateDialog");
+                        oDialog.close();
+                        this._retryAddEntry = null;
+                    },
+
+                    // Dialog Actions (Duplicate Dialog)
+                    onDuplicateUpdate: function () {
+                        if (this._retryAddEntry) {
+                            // Close dialog first
+                            this.byId("duplicateDialog").close();
+                            // Retry with update flag? Or just re-submit?
+                            // For prototype, we might need a flag to force update or just handle logic.
+                            // The backend logic: if ignoreDuplicates=true is implementation specific.
+                            // But here we want to UPDATE the existing entry.
+                            // Actually, if we chose "Update", we should probably call the update endpoint or set edit mode?
+                            // But for now, let's keep it simple as implemented in AddMedicationDialog.
+                            this._retryAddEntry(true);
+                        }
+                    },
+
+                    onDuplicateCreateNew: function () {
+                        if (this._retryAddEntry) {
+                            this.byId("duplicateDialog").close();
+                            this._retryAddEntry(true);
+                        }
+                    },
+
+                    onDuplicateCancel: function () {
+                        this.byId("duplicateDialog").close();
+                    },
+
+                    // Utility
+                    _retrySave: function (sKvnr, oEntry) {
+                        // This logic was in AddMedicationDialog.controller.js
+                        // If we are here, it means we want to force add/update?
+                        // For now, let's just log.
+                        console.log("Retry save called");
+                    },
+
+                    _clearDialogInputs: function () {
+                        var oView = this.getView();
+                        oView.byId("inputMedicationName").setValue("");
+                        oView.byId("inputPZN").setValue("");
+                        oView.byId("inputStrength").setValue("");
+                        oView.byId("inputDosageStructured").setValue("");
+                        oView.byId("inputDosageText").setValue("");
+                        oView.byId("inputInstructions").setValue("");
+                        oView.byId("inputNote").setValue("");
+                    },
+
+                    onExportPDF: function () {
+                        MessageToast.show("Export PDF action triggered");
+                    },
+
+                    onAMTSCheck: function () {
+                        MessageToast.show("AMTS Check action triggered");
+                    },
+
+                    onEditMedication: function (oEvent) {
+                        var oItem = oEvent.getSource().getParent().getParent();
+                        var oContext = oItem.getBindingContext("app");
+                        var oEntry = oContext.getObject();
+                        MessageToast.show("Edit " + oEntry.medicationName);
+                    },
+
+                    onPauseMedication: function (oEvent) {
+                        var oItem = oEvent.getSource().getParent().getParent();
+                        var oContext = oItem.getBindingContext("app");
+                        var oEntry = oContext.getObject();
+                        var sAction = oEntry.status === 'active' ? 'Pause' : 'Reactivate';
+                        MessageToast.show(sAction + " " + oEntry.medicationName);
+                    },
+
+                    onDeleteMedication: function (oEvent) {
+                        var oItem = oEvent.getSource().getParent().getParent();
+                        var oContext = oItem.getBindingContext("app");
+                        var oEntry = oContext.getObject();
+                        MessageBox.confirm("Are you sure you want to delete " + oEntry.medicationName + "?", {
+                            onClose: function (sAction) {
+                                if (sAction === "OK") {
+                                    MessageToast.show("Deleted " + oEntry.medicationName);
+                                }
+                            }
+                        });
+                    },
+
                     _loadMedicationList: function (sKvnr) {
                         var that = this;
                         var oModel = this.getView().getModel("app");
 
-                        fetch("/api/medications/list/" + sKvnr)
+                        return fetch("/api/medications/list/" + sKvnr)
                             .then(function (response) {
                                 if (!response.ok) {
                                     throw new Error("Medication list not found");
@@ -150,12 +450,48 @@
                                 } else {
                                     MessageToast.show("No medications found in eML");
                                 }
+                                return medicationList;
                             })
                             .catch(function (error) {
                                 console.error("Failed to load medication list:", error);
                                 oModel.setProperty("/medicationList", { entries: [] });
                                 oModel.setProperty("/eMLVisible", true);
+                                return { entries: [] };
                             });
+                    },
+
+                    _loadReconciliation: function (sKvnr) {
+                        if (!sKvnr && this.getView().getModel("app")) {
+                            sKvnr = this.getView().getModel("app").getProperty("/currentKVNR");
+                        }
+                        if (!sKvnr) return;
+
+                        var that = this;
+                        var oModel = this.getView().getModel("app");
+
+                        fetch("/api/medications/reconciliation/" + sKvnr)
+                            .then(function (response) {
+                                if (!response.ok) {
+                                    throw new Error("Failed to load reconciliation items");
+                                }
+                                return response.json();
+                            })
+                            .then(function (items) {
+                                oModel.setProperty("/reconciliationItems", items);
+                            })
+                            .catch(function (error) {
+                                console.error("Failed to load reconciliation:", error);
+                                oModel.setProperty("/reconciliationItems", []);
+                            });
+                    },
+
+                    onAddToPlan: function (oEvent) {
+                        var oItem = oEvent.getSource().getParent();
+                        var oContext = oItem.getBindingContext("app");
+                        var oReconcileItem = oContext.getObject();
+                        var oEmlEntry = oReconcileItem.emlEntry;
+
+                        this._openAddDialog(oEmlEntry);
                     },
 
                     _formatEntryTypeIcon: function (entryType) {
@@ -174,17 +510,17 @@
                         var oMed = oContext.getObject();
 
                         MessageBox.information(
-                            "Medication Details:\\n\\n" +
-                            "Type: " + oMed.entryType + "\\n" +
-                            "Medication: " + oMed.medicationName + "\\n" +
-                            "Active Ingredient: " + oMed.activeIngredient + "\\n" +
-                            "Strength: " + (oMed.strength || "N/A") + "\\n" +
-                            "PZN: " + oMed.pzn + "\\n" +
-                            "Dosage: " + (oMed.dosageText || oMed.dosageStructured || "N/A") + "\\n" +
-                            "Indication: " + (oMed.indication || "N/A") + "\\n" +
-                            "Date: " + this._formatDateTime(oMed.authoredDate) + "\\n" +
-                            (oMed.prescriber ? "Prescriber: " + oMed.prescriber + "\\n" : "") +
-                            (oMed.pharmacy ? "Pharmacy: " + oMed.pharmacy + "\\n" : "")
+                            "Medication Details:\n\n" +
+                            "Type: " + oMed.entryType + "\n" +
+                            "Medication: " + oMed.medicationName + "\n" +
+                            "Active Ingredient: " + oMed.activeIngredient + "\n" +
+                            "Strength: " + (oMed.strength || "N/A") + "\n" +
+                            "PZN: " + oMed.pzn + "\n" +
+                            "Dosage: " + (oMed.dosageText || oMed.dosageStructured || "N/A") + "\n" +
+                            "Indication: " + (oMed.indication || "N/A") + "\n" +
+                            "Date: " + this._formatDateTime(oMed.authoredDate) + "\n" +
+                            (oMed.prescriber ? "Prescriber: " + oMed.prescriber + "\n" : "") +
+                            (oMed.pharmacy ? "Pharmacy: " + oMed.pharmacy + "\n" : "")
                         );
                     }
                 });
@@ -206,7 +542,8 @@
         <mvc:View controllerName="epa.controller.PatientSelection" 
                   xmlns:mvc="sap.ui.core.mvc" 
                   xmlns="sap.m" 
-                  xmlns:l="sap.ui.layout">
+                  xmlns:l="sap.ui.layout"
+                  xmlns:core="sap.ui.core">
             <App>
                 <pages>
                     <Page title="ePA Medication Service">
@@ -256,56 +593,218 @@
                                         class="sapUiSmallMarginTop" />
                                 </VBox>
                                 
-                                <!-- Electronic Medication List (eML) Section -->
-                                <VBox visible="{app>/eMLVisible}" class="sapUiLargeMarginTop">
-                                    <Title text="Electronic Medication List (eML)" level="H2" class="sapUiMediumMarginBottom"/>
-                                    
-                                    <Text 
-                                        text="Historical prescriptions and dispensements, ordered by date (newest first)" 
-                                        class="sapUiSmallMarginBottom"/>
-                                    
-                                    <List
-                                        id="medicationList"
-                                        items="{app>/medicationList/entries}"
-                                        mode="SingleSelectMaster"
-                                        selectionChange=".onMedicationRowSelect"
-                                        noDataText="No medications found in eML">
-                                        
-                                        <CustomListItem>
-                                            <HBox alignItems="Center" justifyContent="SpaceBetween" width="100%">
-                                                <HBox alignItems="Center" width="70%">
-                                                    <!-- Entry Type Icon -->
-                                                    <core:Icon 
-                                                        xmlns:core="sap.ui.core"
-                                                        src="{= ${app>entryType} === 'prescription' ? 'sap-icon://document' : 'sap-icon://product' }"
-                                                        color="{= ${app>entryType} === 'prescription' ? '#0070F2' : '#107E3E' }"
-                                                        size="1.5rem"
-                                                        class="sapUiSmallMarginEnd"/>
-                                                    
-                                                    <VBox>
-                                                        <Text text="{app>medicationName}" class="sapUiSmallMarginBottom"/>
-                                                        <Text text="{app>activeIngredient} • {app>strength}" class="sapUiTinyText"/>
-                                                        <Text text="{= ${app>dosageText} || ${app>dosageStructured} || 'No dosage info' }" class="sapUiTinyText"/>
-                                                    </VBox>
-                                                </HBox>
+                                <!-- Patient Data Tabs (visible when patient selected) -->
+                                <IconTabBar
+                                    id="patientDataTabs"
+                                    visible="{app>/patientSelected}"
+                                    class="sapUiMediumMarginTop"
+                                    expandable="false">
+                                    <items>
+                                        <!-- Tab 1: Electronic Medication Plan (eMP) -->
+                                        <IconTabFilter
+                                            text="eMP (Current Plan)"
+                                            icon="sap-icon://clinical-order">
+                                            
+                                            <VBox class="sapUiSmallMargin">
+                                                <!-- eMP Toolbar -->
+                                                <OverflowToolbar>
+                                                    <Title text="Current Medication Plan" level="H3"/>
+                                                    <ToolbarSpacer/>
+                                                    <Button text="Add Medication" icon="sap-icon://add" type="Emphasized" press=".onAddMedication"/>
+                                                    <Button text="Export PDF" icon="sap-icon://pdf-attachment" press=".onExportPDF"/>
+                                                    <Button text="AMTS Check" icon="sap-icon://stethoscope" press=".onAMTSCheck"/>
+                                                </OverflowToolbar>
                                                 
-                                                <VBox alignItems="End" width="30%">
-                                                    <Text text="{app>entryType}" class="sapUiSmallMarginBottom"/>
-                                                    <Text text="{path: 'app>authoredDate', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
-                                                    <Text 
-                                                        text="{= ${app>prescriber} || ${app>pharmacy} || '' }" 
-                                                        class="sapUiTinyText"/>
-                                                </VBox>
-                                            </HBox>
-                                        </CustomListItem>
-                                    </List>
-                                    
-                                    <!-- Empty State -->
-                                    <Text
-                                        text="No historical medications found for this patient"
-                                        visible="{= !${app>/medicationList/entries} || ${app>/medicationList/entries}.length === 0 }"
-                                        class="sapUiSmallMarginTop" />
-                                </VBox>
+                                                <!-- eMP Table -->
+                                                <Table
+                                                    id="empTable"
+                                                    items="{
+                                                        path: 'app>/medicationPlan/entries',
+                                                        sorter: {
+                                                            path: 'status',
+                                                            descending: false,
+                                                            group: true
+                                                        }
+                                                    }"
+                                                    noDataText="No active medications in plan">
+                                                    
+                                                    <columns>
+                                                        <Column width="4rem"><Text text="Status"/></Column>
+                                                        <Column><Text text="Medication"/></Column>
+                                                        <Column minScreenWidth="Tablet" demandPopin="true"><Text text="Dosage"/></Column>
+                                                        <Column minScreenWidth="Tablet" demandPopin="true"><Text text="Reason/Note"/></Column>
+                                                        <Column width="15%" hAlign="End"><Text text="Actions"/></Column>
+                                                    </columns>
+                                                    
+                                                    <items>
+                                                        <ColumnListItem>
+                                                            <cells>
+                                                                <!-- Status Icon -->
+                                                                <core:Icon
+                                                                    src="{= ${app>status} === 'active' ? 'sap-icon://sys-enter-2' : (${app>status} === 'paused' ? 'sap-icon://pause' : 'sap-icon://future') }"
+                                                                    color="{= ${app>status} === 'active' ? '#107E3E' : (${app>status} === 'paused' ? '#E69A17' : '#0070F2') }"
+                                                                    tooltip="{app>status}"/>
+                                                                    
+                                                                <!-- Medication Info -->
+                                                                <VBox>
+                                                                    <Text text="{app>medicationName}" class="sapUiTinyMarginBottom"/>
+                                                                    <Text text="{app>activeIngredient} • {app>strength}" class="sapUiTinyText"/>
+                                                                </VBox>
+                                                                
+                                                                <!-- Dosage -->
+                                                                <Text text="{= ${app>dosageStructured} || ${app>dosageText} }"/>
+                                                                
+                                                                <!-- Reason/Note -->
+                                                                <VBox>
+                                                                    <Text text="{app>reasonForPause}" visible="{= ${app>status} === 'paused'}" class="sapUiTinyText"/>
+                                                                    <Text text="{app>note}" visible="{= !!${app>note}}" class="sapUiTinyText"/>
+                                                                </VBox>
+                                                                
+                                                                <!-- Actions -->
+                                                                <HBox justifyContent="End">
+                                                                    <Button icon="sap-icon://edit" type="Transparent" tooltip="Edit" press=".onEditMedication"/>
+                                                                    <Button 
+                                                                        icon="{= ${app>status} === 'active' ? 'sap-icon://pause' : 'sap-icon://play' }" 
+                                                                        type="Transparent"
+                                                                        tooltip="{= ${app>status} === 'active' ? 'Pause' : 'Reactivate' }"
+                                                                        press=".onPauseMedication"/>
+                                                                    <Button icon="sap-icon://delete" type="Transparent" tooltip="Delete" press=".onDeleteMedication"/>
+                                                                </HBox>
+                                                            </cells>
+                                                        </ColumnListItem>
+                                                    </items>
+                                                </Table>
+                                                
+                                                <HBox alignItems="Center" class="sapUiTinyMarginTop">
+                                                    <Label text="Last updated:" class="sapUiTinyMarginEnd"/>
+                                                    <Text text="{path: 'app>/medicationPlan/lastUpdated', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
+                                                </HBox>
+                                            </VBox>
+                                        </IconTabFilter>
+                                        
+                                        <!-- Tab 2: Electronic Medication List (eML) -->
+                                        <IconTabFilter
+                                            text="eML (History)"
+                                            icon="sap-icon://history">
+                                            
+                                            <VBox class="sapUiSmallMargin">
+                                                <Title text="Electronic Medication List (eML)" level="H3" class="sapUiMediumMarginBottom"/>
+                                                
+                                                <Text 
+                                                    text="Historical prescriptions and dispensements, ordered by date (newest first)" 
+                                                    class="sapUiSmallMarginBottom"/>
+                                                
+                                                <List
+                                                    id="medicationList"
+                                                    items="{app>/medicationList/entries}"
+                                                    mode="SingleSelectMaster"
+                                                    selectionChange=".onMedicationRowSelect"
+                                                    noDataText="No medications found in eML">
+                                                    
+                                                    <CustomListItem>
+                                                        <HBox alignItems="Center" justifyContent="SpaceBetween" width="100%">
+                                                            <HBox alignItems="Center" width="70%">
+                                                                <!-- Entry Type Icon -->
+                                                                <core:Icon 
+                                                                    xmlns:core="sap.ui.core"
+                                                                    src="{= ${app>entryType} === 'prescription' ? 'sap-icon://document' : 'sap-icon://product' }"
+                                                                    color="{= ${app>entryType} === 'prescription' ? '#0070F2' : '#107E3E' }"
+                                                                    size="1.5rem"
+                                                                    class="sapUiSmallMarginEnd"/>
+                                                                
+                                                                <VBox>
+                                                                    <Text text="{app>medicationName}" class="sapUiSmallMarginBottom"/>
+                                                                    <Text text="{app>activeIngredient} • {app>strength}" class="sapUiTinyText"/>
+                                                                    <Text text="{= ${app>dosageText} || ${app>dosageStructured} || 'No dosage info' }" class="sapUiTinyText"/>
+                                                                </VBox>
+                                                            </HBox>
+                                                            
+                                                            <VBox alignItems="End" width="30%">
+                                                                <Text text="{app>entryType}" class="sapUiSmallMarginBottom"/>
+                                                                <Text text="{path: 'app>authoredDate', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
+                                                                <Text 
+                                                                    text="{= ${app>prescriber} || ${app>pharmacy} || '' }" 
+                                                                    class="sapUiTinyText"/>
+                                                            </VBox>
+                                                        </HBox>
+                                                    </CustomListItem>
+                                                </List>
+                                                
+                                                <!-- Empty State -->
+                                                <Text
+                                                    text="No historical medications found for this patient"
+                                                    visible="{= !${app>/medicationList/entries} || ${app>/medicationList/entries}.length === 0 }"
+                                                    class="sapUiSmallMarginTop" />
+                                            </VBox>
+                                        </IconTabFilter>
+
+                                        <!-- Tab 3: Reconciliation -->
+                                        <IconTabFilter
+                                            text="Reconciliation"
+                                            icon="sap-icon://compare">
+                                            
+                                            <VBox class="sapUiSmallMargin">
+                                                <OverflowToolbar>
+                                                    <Title text="Reconciliation (eML vs eMP)" level="H3"/>
+                                                    <ToolbarSpacer/>
+                                                    <Button text="Refresh" icon="sap-icon://refresh" press="._loadReconciliation"/>
+                                                </OverflowToolbar>
+                                                
+                                                <Table
+                                                    id="reconciliationTable"
+                                                    items="{path: 'app>/reconciliationItems'}"
+                                                    noDataText="No reconciliation data available">
+                                                    
+                                                    <columns>
+                                                        <Column><Text text="eML (History)"/></Column>
+                                                        <Column><Text text="PZN/ATC"/></Column>
+                                                        <Column hAlign="Center"><Text text="Status"/></Column>
+                                                        <Column><Text text="eMP (Plan)"/></Column>
+                                                        <Column hAlign="End"><Text text="Action"/></Column>
+                                                    </columns>
+                                                    
+                                                    <items>
+                                                        <ColumnListItem>
+                                                            <cells>
+                                                                <!-- eML Data -->
+                                                                <VBox>
+                                                                    <Label text="{app>medicationName}" design="Bold"/>
+                                                                    <Text text="{path: 'app>emlEntry/authoredDate', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
+                                                                </VBox>
+                                                                
+                                                                <!-- Codes -->
+                                                                <VBox>
+                                                                    <Text text="{app>pzn}" class="sapUiTinyText"/>
+                                                                    <Text text="{app>atcCode}" class="sapUiTinyText"/>
+                                                                </VBox>
+                                                                
+                                                                <!-- Status -->
+                                                                <core:Icon
+                                                                    src="{= ${app>inPlan} ? 'sap-icon://accept' : 'sap-icon://alert' }"
+                                                                    color="{= ${app>inPlan} ? '#107E3E' : '#BB0000' }"
+                                                                    tooltip="{= ${app>inPlan} ? 'In Plan' : 'Missing in Plan' }"/>
+                                                                    
+                                                                <!-- eMP Data -->
+                                                                <VBox visible="{app>inPlan}">
+                                                                    <Text text="{app>empEntry/medicationName}"/>
+                                                                    <Text text="{app>empEntry/status}" class="sapUiTinyText"/>
+                                                                </VBox>
+                                                                
+                                                                <!-- Action -->
+                                                                <Button
+                                                                    text="Add to Plan"
+                                                                    icon="sap-icon://add"
+                                                                    type="Emphasized"
+                                                                    visible="{= !${app>inPlan} }"
+                                                                    press=".onAddToPlan"/>
+                                                            </cells>
+                                                        </ColumnListItem>
+                                                    </items>
+                                                </Table>
+                                            </VBox>
+                                        </IconTabFilter>
+                                    </items>
+                                </IconTabBar>
                                 
                             </l:VerticalLayout>
                         </content>

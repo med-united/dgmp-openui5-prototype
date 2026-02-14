@@ -1,0 +1,21 @@
+{
+    "kvnr": "Y987654321",
+    "version": 5,
+    "lastUpdated": "2026-02-08T16:00:00Z",
+    "entries": [
+        {
+            "id": "emp-y-001",
+            "status": "active",
+            "pzn": "00764973",
+            "medicationName": "Amoxicillin 500mg Kapseln",
+            "activeIngredient": "Amoxicillin",
+            "strength": "500mg",
+            "dosageStructured": "1-0-1-0",
+            "intakeInstructions": "alle 8 Stunden",
+            "indication": "Atemwegsinfekt",
+            "atcCode": "J01CA04",
+            "authoredDate": "2026-02-08T09:00:00Z",
+            "entrySource": "prescription"
+        }
+    ]
+}

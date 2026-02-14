@@ -1,0 +1,65 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:l="sap.ui.layout"
+    xmlns:f="sap.ui.layout.form">
+    <Dialog
+        id="duplicateDialog"
+        title="Duplicate Medication Detected"
+        class="sapUiContentPadding"
+        type="Message">
+        <content>
+            <VBox class="sapUiMediumMargin">
+                <Text text="A similar medication already exists in the plan. How would you like to proceed?" class="sapUiSmallMarginBottom" />
+                
+                <!-- Side-by-Side Comparison -->
+                <l:Grid defaultSpan="L6 M6 S12" class="sapUiSmallMarginBottom">
+                    <VBox class="sapUiTinyMargin">
+                        <Title text="Existing Entry" level="H4" />
+                        <Label text="Medication" design="Bold" />
+                        <Text text="{duplicate>/existingEntry/medicationName}" />
+                        
+                        <Label text="PZN" design="Bold" class="sapUiTinyMarginTop"/>
+                        <Text text="{duplicate>/existingEntry/pzn}" />
+                        
+                        <Label text="Status" design="Bold" class="sapUiTinyMarginTop"/>
+                        <Text text="{duplicate>/existingEntry/status}" />
+                        
+                        <Label text="Dosage" design="Bold" class="sapUiTinyMarginTop"/>
+                        <Text text="{= ${duplicate>/existingEntry/dosageStructured} || ${duplicate>/existingEntry/dosageText} }" />
+                    </VBox>
+                    
+                    <VBox class="sapUiTinyMargin">
+                        <Title text="New Entry" level="H4" />
+                        <Label text="Medication" design="Bold" />
+                        <Text text="{duplicate>/newEntry/medicationName}" />
+                        
+                        <Label text="PZN" design="Bold" class="sapUiTinyMarginTop"/>
+                        <Text text="{duplicate>/newEntry/pzn}" />
+                        
+                        <Label text="Status" design="Bold" class="sapUiTinyMarginTop"/>
+                        <Text text="active" />
+                        
+                        <Label text="Dosage" design="Bold" class="sapUiTinyMarginTop"/>
+                        <Text text="{= ${duplicate>/newEntry/dosageStructured} || ${duplicate>/newEntry/dosageText} }" />
+                    </VBox>
+                </l:Grid>
+
+                <RadioButtonGroup id="duplicateResolutionGroup">
+                    <buttons>
+                        <RadioButton text="Create new entry (keep both)" selected="true" />
+                        <!-- Update existing is disabled for prototype simplification as per plan/specs implied scope or can be enabled if we want full P2 -->
+                        <RadioButton text="Update existing entry" enabled="false" /> 
+                    </buttons>
+                </RadioButtonGroup>
+                <Text text="(Update feature coming in future release)" class="sapUiTinyText sapUiTinyMarginTop" visible="true"/>
+            </VBox>
+        </content>
+        <beginButton>
+            <Button text="Continue" type="Emphasized" press=".onConfirmDuplicate" />
+        </beginButton>
+        <endButton>
+            <Button text="Cancel" press=".onCancelDuplicate" />
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>

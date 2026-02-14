@@ -47,6 +47,15 @@ public class PatientService {
             patients.forEach(p -> patientCache.put(p.getKvnr(), p));
             LOG.info("Loaded " + patients.size() + " patients from fixtures");
 
+            // Pre-load first 2 patients as recent for convenience
+            if (patients.size() >= 2) {
+                // Add in reverse order so the first one ends up at the index 0 (most recent)
+                addToRecentPatients(patients.get(1).getKvnr());
+                addToRecentPatients(patients.get(0).getKvnr());
+            } else if (!patients.isEmpty()) {
+                addToRecentPatients(patients.get(0).getKvnr());
+            }
+
         } catch (IOException e) {
             LOG.severe("Failed to load patient fixtures: " + e.getMessage());
         }
