@@ -20,8 +20,9 @@
                 "sap/m/MessageToast",
                 "sap/m/MessageBox",
                 "epa/model/formatter",
-                "sap/ui/core/Fragment"
-            ], function (Controller, JSONModel, MessageToast, MessageBox, formatter, Fragment) {
+                "sap/ui/core/Fragment",
+                "epa/model/AMTSSimulator"
+            ], function (Controller, JSONModel, MessageToast, MessageBox, formatter, Fragment, AMTSSimulator) {
                 "use strict";
 
                 // Register controller definition synchronously
@@ -41,6 +42,10 @@
                         }, 500);
                     },
 
+                    _setBusy: function (bBusy) {
+                        this.getView().setBusy(bBusy);
+                    },
+
                     onSearch: function (oEvent) {
                         var sQuery = oEvent.getParameter("query") || oEvent.getParameter("newValue");
 
@@ -54,14 +59,18 @@
                             return;
                         }
 
-                        this.getView().getModel("app").setProperty("/currentKVNR", sQuery);
                         this.getView().getModel("app").setProperty("/patientSelected", true);
                         this._addToRecentPatients(sQuery);
 
                         // Load data
-                        this._loadMedicationPlan(sQuery);
-                        this._loadMedicationList(sQuery);
-                        this._loadReconciliation(sQuery);
+                        this._setBusy(true);
+                        Promise.all([
+                            this._loadMedicationPlan(sQuery),
+                            this._loadMedicationList(sQuery),
+                            this._loadReconciliation(sQuery)
+                        ]).finally(function () {
+                            that._setBusy(false);
+                        });
                     },
                     _validateKVNR: function (sKvnr) {
                         var kvnrRegex = /^[A-Z0-9]{10}$/;
@@ -93,7 +102,10 @@
                                 that._loadRecentPatients();
                             })
                             .catch(function (error) {
-                                MessageBox.error("Patient not found: " + error.message);
+                                MessageBox.error("Could not find patient with KVNR " + sKvnr + ". Please check the number and try again.");
+                            })
+                            .finally(function () {
+                                that._setBusy(false);
                             });
                     },
 
@@ -127,23 +139,21 @@
 
                         oModel.setProperty("/currentPatient", oPatient);
                         oModel.setProperty("/currentKVNR", oPatient.kvnr);
-                        oModel.setProperty("/patientSelected", true);
+                        this.getView().getModel("app").setProperty("/currentKVNR", oPatient.kvnr);
+                        this.getView().getModel("app").setProperty("/patientSelected", true);
 
                         MessageToast.show("Loaded: " + oPatient.firstName + " " + oPatient.lastName);
 
                         // Load data
-                        this._loadMedicationList(oPatient.kvnr);
-                        this._loadMedicationPlan(oPatient.kvnr);
-                    },
-
-                    onReadEGKCard: function () {
-                        MessageBox.information(
-                            "eGK card reading will be implemented in Phase 6 (User Story 3).\\n\\n" +
-                            "For now, please use the search field to enter a KVNR manually:\\n" +
-                            "- X123456789 (Erika Mustermann)\\n" +
-                            "- Y987654321 (Max Beispiel)\\n" +
-                            "- Z555111222 (Anna Test)"
-                        );
+                        this._setBusy(true);
+                        var that = this;
+                        Promise.all([
+                            this._loadMedicationList(oPatient.kvnr),
+                            this._loadMedicationPlan(oPatient.kvnr),
+                            this._loadReconciliation(oPatient.kvnr)
+                        ]).finally(function () {
+                            that._setBusy(false);
+                        });
                     },
 
                     // Medication List (eML) methods
@@ -152,10 +162,10 @@
                         var that = this;
                         var oModel = this.getView().getModel("app");
 
-                        fetch("/api/medications/plan/" + sKvnr)
+                        return fetch("/api/medications/plan/" + sKvnr)
                             .then(function (response) {
                                 if (!response.ok) {
-                                    throw new Error("Medication plan not found");
+                                    throw new Error("Medication plan for " + sKvnr + " not found");
                                 }
                                 return response.json();
                             })
@@ -165,6 +175,27 @@
                             .catch(function (error) {
                                 console.error("Failed to load medication plan:", error);
                                 oModel.setProperty("/medicationPlan", { entries: [] });
+                                MessageToast.show("Note: Empty or missing medication plan.");
+                            });
+                    },
+
+                    _loadMedicationList: function (sKvnr) {
+                        var that = this;
+                        var oModel = this.getView().getModel("app");
+
+                        return fetch("/api/medications/list/" + sKvnr)
+                            .then(function (response) {
+                                if (!response.ok) {
+                                    throw new Error("Medication list for " + sKvnr + " not found");
+                                }
+                                return response.json();
+                            })
+                            .then(function (medicationList) {
+                                oModel.setProperty("/medicationList", medicationList);
+                            })
+                            .catch(function (error) {
+                                console.error("Failed to load medication list:", error);
+                                oModel.setProperty("/medicationList", { entries: [] });
                             });
                     },
 
@@ -270,31 +301,12 @@
                             }
 
                             if (oPreFillData) {
-                                that._preFillAddDialog(oPreFillData);
+                                that._oAddMedicationController.fillFields(oPreFillData);
                             }
 
                             oDialog.open();
                         });
                     },
-
-                    _preFillAddDialog: function (oData) {
-                        var sViewId = this.getView().getId();
-                        var setValue = function (sId, sVal) {
-                            var oControl = sap.ui.getCore().byId(sViewId + "--" + sId);
-                            if (oControl) oControl.setValue(sVal || "");
-                        };
-
-                        setValue("inputMedicationName", oData.medicationName);
-                        setValue("inputPZN", oData.pzn);
-                        setValue("inputStrength", oData.strength);
-                        setValue("inputActiveIngredient", oData.activeIngredient);
-                        setValue("inputDosageStructured", oData.dosageStructured);
-                        setValue("inputDosageText", oData.dosageText);
-                        setValue("inputInstructions", oData.intakeInstructions);
-                        setValue("inputIndication", oData.indication);
-                    },
-
-
 
                     _handleDuplicateResponse: function (match, retryCallback) {
                         var oView = this.getView();
@@ -399,8 +411,47 @@
                     },
 
                     onAMTSCheck: function () {
-                        MessageToast.show("AMTS Check action triggered");
+                        // 1. Get current medication plan
+                        var oModel = this.getView().getModel("app");
+                        var oPlan = oModel.getProperty("/medicationPlan");
+
+                        if (!oPlan || !oPlan.entries || oPlan.entries.length === 0) {
+                            MessageToast.show("No medications in plan to check.");
+                            return;
+                        }
+
+                        // 2. Filter for active medications
+                        var aActiveMeds = oPlan.entries.filter(function (m) {
+                            return m.status === "active";
+                        });
+
+                        if (aActiveMeds.length < 2) {
+                            MessageToast.show("Need at least 2 active medications to check for interactions.");
+                            return;
+                        }
+
+                        // 3. Run simulation
+                        var aWarnings = AMTSSimulator.checkInteractions(aActiveMeds);
+
+                        // 4. Display results
+                        if (aWarnings.length === 0) {
+                            MessageBox.success("AMTS Check: No interactions found.", {
+                                title: "Safety Check Passed"
+                            });
+                        } else {
+                            // Build warning message
+                            var sMessage = "Found " + aWarnings.length + " potential interaction(s):\n\n";
+                            aWarnings.forEach(function (w) {
+                                sMessage += "• " + w.title + "\n" + w.description + "\n\n";
+                            });
+
+                            MessageBox.warning(sMessage, {
+                                title: "Safety Check Warnings",
+                                styleClass: "sapUiResponsivePadding--header sapUiResponsivePadding--content sapUiResponsivePadding--footer"
+                            });
+                        }
                     },
+
 
                     onEditMedication: function (oEvent) {
                         var oItem = oEvent.getSource().getParent().getParent();
@@ -413,20 +464,217 @@
                         var oItem = oEvent.getSource().getParent().getParent();
                         var oContext = oItem.getBindingContext("app");
                         var oEntry = oContext.getObject();
-                        var sAction = oEntry.status === 'active' ? 'Pause' : 'Reactivate';
-                        MessageToast.show(sAction + " " + oEntry.medicationName);
+                        var sKvnr = this.getView().getModel("app").getProperty("/currentKVNR");
+                        var that = this;
+
+                        var sNewStatus = oEntry.status === 'active' ? 'paused' : 'active';
+                        var sAction = sNewStatus === 'paused' ? 'Pause' : 'Reactivate';
+
+                        // Optimistic update
+                        var sOldStatus = oEntry.status;
+                        oContext.getModel().setProperty(oContext.getPath() + "/status", sNewStatus);
+                        this._setBusy(true);
+                        fetch("/api/medications/plan/" + sKvnr + "/entries/" + oEntry.id + "/status?status=" + sNewStatus, {
+                            method: "PATCH"
+                        })
+                            .then(function (response) {
+                                if (!response.ok) {
+                                    throw new Error("Failed to update status");
+                                }
+                                return response.json();
+                            })
+                            .then(function (updatedPlan) {
+                                MessageToast.show(sAction + " successful for " + oEntry.medicationName);
+                                // Refresh plan from backend to ensure consistency (version, timestamp)
+                                oContext.getModel().setProperty("/medicationPlan", updatedPlan);
+                            })
+                            .catch(function (error) {
+                                console.error("Status update failed", error);
+                                MessageBox.error("Failed to " + sAction.toLowerCase() + " medication: " + error.message);
+                                // Revert optimistic update
+                                oContext.getModel().setProperty(oContext.getPath() + "/status", sOldStatus);
+                            })
+                            .finally(function () {
+                                that._setBusy(false);
+                            });
                     },
 
                     onDeleteMedication: function (oEvent) {
                         var oItem = oEvent.getSource().getParent().getParent();
                         var oContext = oItem.getBindingContext("app");
                         var oEntry = oContext.getObject();
-                        MessageBox.confirm("Are you sure you want to delete " + oEntry.medicationName + "?", {
+                        var sKvnr = this.getView().getModel("app").getProperty("/currentKVNR");
+                        var that = this;
+
+                        MessageBox.confirm("Are you sure you want to delete " + oEntry.medicationName + "? This cannot be undone.", {
+                            icon: MessageBox.Icon.WARNING,
+                            title: "Delete Medication",
+                            actions: [MessageBox.Action.DELETE, MessageBox.Action.CANCEL],
                             onClose: function (sAction) {
-                                if (sAction === "OK") {
-                                    MessageToast.show("Deleted " + oEntry.medicationName);
+                                if (sAction === MessageBox.Action.DELETE) {
+                                    that._setBusy(true);
+                                    fetch("/api/medications/plan/" + sKvnr + "/entries/" + oEntry.id, {
+                                        method: "DELETE"
+                                    })
+                                        .then(function (response) {
+                                            if (!response.ok) {
+                                                throw new Error("Failed to delete entry");
+                                            }
+                                            MessageToast.show("Deleted " + oEntry.medicationName);
+                                            // Reload plan
+                                            return that._loadMedicationPlan(sKvnr);
+                                        })
+                                        .catch(function (error) {
+                                            console.error("Delete failed", error);
+                                            MessageBox.error("Failed to delete medication: " + error.message);
+                                        })
+                                        .finally(function () {
+                                            that._setBusy(false);
+                                        });
                                 }
                             }
+                        });
+                    },
+
+                    onLinkPress: function (oEvent) {
+                        var oItem = oEvent.getSource().getParent().getParent().getParent().getParent(); // Helper method nesting?
+                        // The source is the button in HBox in VBox in HBox in CustomListItem... ui5 structure can be deep
+                        // Let's use getBindingContext directly from source
+                        var oContext = oEvent.getSource().getBindingContext("app");
+                        var oEntry = oContext.getObject();
+                        var that = this;
+                        var oView = this.getView();
+
+                        // If already linked, offer to unlink
+                        if (oEntry.linkedToPlanId) {
+                            sap.ui.require(["sap/m/ActionSheet", "sap/m/Button"], function (ActionSheet, Button) {
+                                var oActionSheet = new ActionSheet({
+                                    title: "Medication Link",
+                                    showCancelButton: true,
+                                    buttons: [
+                                        new Button({
+                                            text: "Unlink from Plan",
+                                            icon: "sap-icon://broken-link",
+                                            type: "Reject",
+                                            press: function () {
+                                                that.onUnlinkEntry(oEntry);
+                                            }
+                                        })
+                                    ]
+                                });
+                                oView.addDependent(oActionSheet);
+                                oActionSheet.openBy(oEvent.getSource());
+                            });
+                            return;
+                        }
+
+                        // If not linked, show candidates from eMP
+                        var oModel = oView.getModel("app");
+                        var aPlanEntries = oModel.getProperty("/medicationPlan/entries") || [];
+
+                        if (aPlanEntries.length === 0) {
+                            MessageToast.show("No active medication plan entries to link to.");
+                            return;
+                        }
+
+                        sap.ui.require(["sap/m/ActionSheet", "sap/m/Button"], function (ActionSheet, Button) {
+                            var aButtons = [];
+
+                            aPlanEntries.forEach(function (oEmpEntry) {
+                                // Filter out paused/completed? Maybe not, you might want to link to a paused one.
+                                // But probably only active makes most sense for now.
+                                if (oEmpEntry.status !== 'active') return;
+
+                                aButtons.push(new Button({
+                                    text: "Plan: " + oEmpEntry.medicationName + " (" + (oEmpEntry.dosageStructured || oEmpEntry.dosageText || "No dosage") + ")",
+                                    icon: "sap-icon://chain-link",
+                                    press: function () {
+                                        that.onLinkToPlanEntry(oEntry, oEmpEntry);
+                                    }
+                                }));
+                            });
+
+                            if (aButtons.length === 0) {
+                                MessageToast.show("No eligible active plan entries found.");
+                                return;
+                            }
+
+                            var oActionSheet = new ActionSheet({
+                                title: "Link to Plan Entry",
+                                showCancelButton: true,
+                                buttons: aButtons
+                            });
+                            oView.addDependent(oActionSheet);
+                            oActionSheet.openBy(oEvent.getSource());
+                        });
+                    },
+
+                    onLinkToPlanEntry: function (oEmlEntry, oEmpEntry) {
+                        var that = this;
+                        var sKvnr = this.getView().getModel("app").getProperty("/currentKVNR");
+
+                        fetch("/api/medications/link?emlId=" + oEmlEntry.id + "&empId=" + oEmpEntry.id, {
+                            method: "POST"
+                        })
+                            .then(function (response) {
+                                if (!response.ok) throw new Error("Failed to create link");
+                                MessageToast.show("Linked to " + oEmpEntry.medicationName);
+                                that._loadMedicationList(sKvnr); // Refresh list to show link status
+                                that._loadMedicationPlan(sKvnr); // Refresh plan to show history indicator
+                            })
+                            .catch(function (error) {
+                                console.error("Link failed", error);
+                                MessageToast.show("Failed to create link");
+                            });
+                    },
+
+                    onUnlinkEntry: function (oEmlEntry) {
+                        var that = this;
+                        var sKvnr = this.getView().getModel("app").getProperty("/currentKVNR");
+
+                        fetch("/api/medications/link?emlId=" + oEmlEntry.id, {
+                            method: "DELETE"
+                        })
+                            .then(function (response) {
+                                if (!response.ok) throw new Error("Failed to remove link");
+                                MessageToast.show("Unlinked");
+                                that._loadMedicationList(sKvnr); // Refresh list
+                                that._loadMedicationPlan(sKvnr); // Refresh plan
+                            })
+                            .catch(function (error) {
+                                console.error("Unlink failed", error);
+                                MessageToast.show("Failed to remove link");
+                            });
+                    },
+
+                    onShowLinkedHistory: function (oEvent) {
+                        var oSource = oEvent.getSource();
+                        var oContext = oSource.getBindingContext("app");
+                        var oEmpEntry = oContext.getObject();
+                        var oModel = this.getView().getModel("app");
+
+                        // Get all eML entries
+                        var aEmlEntries = oModel.getProperty("/medicationList/entries") || [];
+
+                        // Filter to only linked entries
+                        var aLinkedEntries = aEmlEntries.filter(function (entry) {
+                            return oEmpEntry.linkedEmlIds && oEmpEntry.linkedEmlIds.includes(entry.id);
+                        });
+
+                        if (aLinkedEntries.length === 0) {
+                            MessageToast.show("No linked history entries found");
+                            return;
+                        }
+
+                        // Create message with linked entries
+                        var sMessage = "Linked History (" + aLinkedEntries.length + "):\n\n";
+                        aLinkedEntries.forEach(function (entry) {
+                            sMessage += "• " + entry.medicationName + "\n";
+                            sMessage += "  " + entry.entryType + " - " + (entry.authoredDate || "No date") + "\n\n";
+                        });
+
+                        MessageBox.information(sMessage, {
+                            title: "Linked eML Entries for " + oEmpEntry.medicationName
                         });
                     },
 
@@ -461,22 +709,35 @@
                     },
 
                     _loadReconciliation: function (sKvnr) {
+                        // UI5 passes event object when called from button press - ignore it
+                        if (sKvnr && typeof sKvnr === 'object' && sKvnr.sId) {
+                            sKvnr = null;
+                        }
+
                         if (!sKvnr && this.getView().getModel("app")) {
                             sKvnr = this.getView().getModel("app").getProperty("/currentKVNR");
                         }
-                        if (!sKvnr) return;
+
+                        console.log("_loadReconciliation called with KVNR:", sKvnr);
+
+                        if (!sKvnr) {
+                            console.warn("No KVNR available for reconciliation");
+                            return;
+                        }
 
                         var that = this;
                         var oModel = this.getView().getModel("app");
 
                         fetch("/api/medications/reconciliation/" + sKvnr)
                             .then(function (response) {
+                                console.log("Reconciliation API response status:", response.status, "for KVNR:", sKvnr);
                                 if (!response.ok) {
-                                    throw new Error("Failed to load reconciliation items");
+                                    throw new Error("Failed to load reconciliation items (HTTP " + response.status + ")");
                                 }
                                 return response.json();
                             })
                             .then(function (items) {
+                                console.log("Reconciliation items loaded:", items.length, "items");
                                 oModel.setProperty("/reconciliationItems", items);
                             })
                             .catch(function (error) {
@@ -561,13 +822,7 @@
                                             width="400px"
                                             search=".onSearch"
                                             class="sapUiSmallMarginEnd" />
-                                        
-                                        <Button
-                                            text="Read from eGK Card"
-                                            icon="sap-icon://credit-card"
-                                            press=".onReadEGKCard"
-                                            type="Emphasized" />
-                                    </HBox>
+                                                                        </HBox>
                                 </VBox>
                                 
                                 <!-- Recent Patients Section -->
@@ -578,7 +833,8 @@
                                         id="recentPatientsList"
                                         items="{app>/recentPatients}"
                                         mode="SingleSelectMaster"
-                                        selectionChange=".onRecentPatientSelect">
+                                        selectionChange=".onRecentPatientSelect"
+                                        noDataText="No recent patients searched yet.">
                                         
                                         <StandardListItem
                                             title="{app>firstName} {app>lastName}"
@@ -586,11 +842,6 @@
                                             info="{app>dateOfBirth}"
                                             type="Navigation" />
                                     </List>
-                                    
-                                    <Text
-                                        text="No recent patients"
-                                        visible="{= ${app>/recentPatients}.length === 0 }"
-                                        class="sapUiSmallMarginTop" />
                                 </VBox>
                                 
                                 <!-- Patient Data Tabs (visible when patient selected) -->
@@ -647,7 +898,17 @@
                                                                     
                                                                 <!-- Medication Info -->
                                                                 <VBox>
-                                                                    <Text text="{app>medicationName}" class="sapUiTinyMarginBottom"/>
+                                                                    <HBox alignItems="Center">
+                                                                        <Text text="{app>medicationName}" class="sapUiTinyMarginBottom sapUiTinyMarginEnd sapMTextBold" wrapping="false"/>
+                                                                        <ObjectStatus
+                                                                            text="History ({app>linkedEmlIds/length})"
+                                                                            state="Information"
+                                                                            icon="sap-icon://chain-link"
+                                                                            visible="{= ${app>linkedEmlIds}.length > 0 }"
+                                                                            active="true"
+                                                                            press=".onShowLinkedHistory"
+                                                                            class="sapUiTinyMarginBottom"/>
+                                                                    </HBox>
                                                                     <Text text="{app>activeIngredient} • {app>strength}" class="sapUiTinyText"/>
                                                                 </VBox>
                                                                 
@@ -722,9 +983,22 @@
                                                             <VBox alignItems="End" width="30%">
                                                                 <Text text="{app>entryType}" class="sapUiSmallMarginBottom"/>
                                                                 <Text text="{path: 'app>authoredDate', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
-                                                                <Text 
-                                                                    text="{= ${app>prescriber} || ${app>pharmacy} || '' }" 
-                                                                    class="sapUiTinyText"/>
+                                                                
+                                                                <!-- Link Status & Action -->
+                                                                <HBox alignItems="Center" class="sapUiTinyMarginTop">
+                                                                     <ObjectStatus
+                                                                        text="Linked"
+                                                                        state="Success"
+                                                                        icon="sap-icon://chain-link"
+                                                                        visible="{= !!${app>linkedToPlanId} }"
+                                                                        class="sapUiTinyMarginEnd"/>
+                                                                     
+                                                                     <Button
+                                                                        icon="{= !!${app>linkedToPlanId} ? 'sap-icon://broken-link' : 'sap-icon://chain-link' }"
+                                                                        type="Transparent"
+                                                                        tooltip="{= !!${app>linkedToPlanId} ? 'Unlink from Plan' : 'Link to Plan' }"
+                                                                        press=".onLinkPress"/>
+                                                                </HBox>
                                                             </VBox>
                                                         </HBox>
                                                     </CustomListItem>
@@ -768,7 +1042,7 @@
                                                             <cells>
                                                                 <!-- eML Data -->
                                                                 <VBox>
-                                                                    <Label text="{app>medicationName}" design="Bold"/>
+                                                                    <Label text="{app>medicationName}" class="sapMLabelBold"/>
                                                                     <Text text="{path: 'app>emlEntry/authoredDate', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
                                                                 </VBox>
                                                                 

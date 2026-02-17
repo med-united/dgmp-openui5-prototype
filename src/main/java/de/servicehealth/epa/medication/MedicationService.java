@@ -31,6 +31,10 @@ public class MedicationService {
     private final ConcurrentHashMap<String, MedicationPlan> medicationPlanCache = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
 
+    // In-memory storage for links between eML and eMP entries
+    // Key: emlId, Value: empId
+    private final ConcurrentHashMap<String, String> linkMap = new ConcurrentHashMap<>();
+
     public MedicationService() {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
@@ -42,7 +46,33 @@ public class MedicationService {
      * Returns empty MedicationList if no data found.
      */
     public Optional<MedicationList> loadMedicationList(String kvnr) {
-        return Optional.ofNullable(medicationCache.get(kvnr));
+        MedicationList list = medicationCache.get(kvnr);
+        if (list != null) {
+            // Populate linkedToPlanId for each entry based on current linkMap
+            for (MedicationListEntry entry : list.getEntries()) {
+                String linkedEmpId = linkMap.get(entry.getId());
+                entry.setLinkedToPlanId(linkedEmpId);
+            }
+        }
+        return Optional.ofNullable(list);
+    }
+
+    /**
+     * Create a link between an eML entry and an eMP entry.
+     */
+    public void createLink(String kvnr, String emlId, String empId) {
+        // Validate that both entries exist for this patient?
+        // For prototype, we just store the link.
+        linkMap.put(emlId, empId);
+        System.out.println("Linked eML entry " + emlId + " to eMP entry " + empId);
+    }
+
+    /**
+     * Remove a link for an eML entry.
+     */
+    public boolean removeLink(String kvnr, String emlId) {
+        String removed = linkMap.remove(emlId);
+        return removed != null;
     }
 
     /**
@@ -50,7 +80,20 @@ public class MedicationService {
      * Returns empty Optional if no data found.
      */
     public Optional<MedicationPlan> loadMedicationPlan(String kvnr) {
-        return Optional.ofNullable(medicationPlanCache.get(kvnr));
+        MedicationPlan plan = medicationPlanCache.get(kvnr);
+        if (plan != null) {
+            // Populate linkedEmlIds (reverse lookup in linkMap)
+            for (MedicationPlanEntry entry : plan.getEntries()) {
+                List<String> linkedEmls = new ArrayList<>();
+                for (Map.Entry<String, String> link : linkMap.entrySet()) {
+                    if (link.getValue().equals(entry.getId())) {
+                        linkedEmls.add(link.getKey());
+                    }
+                }
+                entry.setLinkedEmlIds(linkedEmls);
+            }
+        }
+        return Optional.ofNullable(plan);
     }
 
     /**
@@ -153,63 +196,80 @@ public class MedicationService {
      * @param kvnr         Patient KVNR
      * @param entryId      ID of the entry to update
      * @param updatedEntry Entry with updated field values
-     * @return Updated MedicationPlan, or empty Optional if entry not found
      */
-    public Optional<MedicationPlan> updateMedicationPlanEntry(String kvnr,
-            String entryId, MedicationPlanEntry updatedEntry) {
+    public Optional<MedicationPlan> updateMedicationPlanEntry(String kvnr, String entryId,
+            MedicationPlanEntry updatedEntry) {
         MedicationPlan plan = medicationPlanCache.get(kvnr);
-
         if (plan == null) {
             return Optional.empty();
         }
 
-        // Find the entry to update
-        MedicationPlanEntry existingEntry = null;
-        for (MedicationPlanEntry entry : plan.getEntries()) {
+        for (int i = 0; i < plan.getEntries().size(); i++) {
+            MedicationPlanEntry entry = plan.getEntries().get(i);
             if (entry.getId().equals(entryId)) {
-                existingEntry = entry;
-                break;
+                // Update fields
+                entry.setMedicationName(updatedEntry.getMedicationName());
+                entry.setPzn(updatedEntry.getPzn());
+                entry.setStrength(updatedEntry.getStrength());
+                entry.setActiveIngredient(updatedEntry.getActiveIngredient());
+                entry.setDosageStructured(updatedEntry.getDosageStructured());
+                entry.setDosageText(updatedEntry.getDosageText());
+                entry.setIntakeInstructions(updatedEntry.getIntakeInstructions());
+                entry.setIndication(updatedEntry.getIndication());
+                entry.setNote(updatedEntry.getNote());
+
+                // Update metadata
+                plan.setVersion(plan.getVersion() + 1);
+                plan.setLastUpdated(java.time.Instant.now());
+
+                return Optional.of(plan);
             }
         }
 
-        if (existingEntry == null) {
+        return Optional.empty();
+    }
+
+    /**
+     * Change status of a medication entry (e.g., active -> paused).
+     */
+    public Optional<MedicationPlan> changeMedicationStatus(String kvnr, String entryId, String newStatus) {
+        MedicationPlan plan = medicationPlanCache.get(kvnr);
+        if (plan == null) {
             return Optional.empty();
         }
 
-        // Update modifiable fields (FR-009: dosage and intake instructions primarily)
-        if (updatedEntry.getDosageStructured() != null) {
-            existingEntry.setDosageStructured(updatedEntry.getDosageStructured());
-        }
-        if (updatedEntry.getDosageText() != null) {
-            existingEntry.setDosageText(updatedEntry.getDosageText());
-        }
-        if (updatedEntry.getIntakeInstructions() != null) {
-            existingEntry.setIntakeInstructions(updatedEntry.getIntakeInstructions());
-        }
-        if (updatedEntry.getIndication() != null) {
-            existingEntry.setIndication(updatedEntry.getIndication());
-        }
-        if (updatedEntry.getNote() != null) {
-            existingEntry.setNote(updatedEntry.getNote());
-        }
-        // Allow updating medication name, strength, and active ingredient
-        if (updatedEntry.getMedicationName() != null) {
-            existingEntry.setMedicationName(updatedEntry.getMedicationName());
-        }
-        if (updatedEntry.getStrength() != null) {
-            existingEntry.setStrength(updatedEntry.getStrength());
-        }
-        if (updatedEntry.getActiveIngredient() != null) {
-            existingEntry.setActiveIngredient(updatedEntry.getActiveIngredient());
+        for (MedicationPlanEntry entry : plan.getEntries()) {
+            if (entry.getId().equals(entryId)) {
+                entry.setStatus(newStatus);
+
+                // Update metadata
+                plan.setVersion(plan.getVersion() + 1);
+                plan.setLastUpdated(java.time.Instant.now());
+
+                return Optional.of(plan);
+            }
         }
 
-        // FR-008: Increment plan version on edit
-        plan.setVersion(plan.getVersion() + 1);
+        return Optional.empty();
+    }
 
-        // FR-009: Update lastModified timestamp
-        plan.setLastUpdated(java.time.Instant.now());
+    /**
+     * Delete a medication entry from the plan.
+     */
+    public boolean deleteMedicationEntry(String kvnr, String entryId) {
+        MedicationPlan plan = medicationPlanCache.get(kvnr);
+        if (plan == null) {
+            return false;
+        }
 
-        return Optional.of(plan);
+        boolean removed = plan.getEntries().removeIf(entry -> entry.getId().equals(entryId));
+
+        if (removed) {
+            plan.setVersion(plan.getVersion() + 1);
+            plan.setLastUpdated(java.time.Instant.now());
+        }
+
+        return removed;
     }
 
     /**
@@ -279,18 +339,23 @@ public class MedicationService {
 
         // Iterate through eML entries and find matches in eMP
         for (MedicationListEntry emlEntry : eml.getEntries()) {
-            // Skip dispensements for now, or maybe include them? implementing for all eML
-            // entries as per spec imply "medication history"
-            // Let's include everything from eML.
-
             MedicationPlanEntry match = null;
 
-            // Try PZN match
-            if (emlEntry.getPzn() != null) {
+            // 1. Try manual link first
+            String linkedEmpId = linkMap.get(emlEntry.getId());
+            if (linkedEmpId != null && emp != null) {
+                match = emp.getEntries().stream()
+                        .filter(e -> e.getId().equals(linkedEmpId))
+                        .findFirst()
+                        .orElse(null);
+            }
+
+            // 2. Try PZN match if no manual link
+            if (match == null && emlEntry.getPzn() != null) {
                 match = empPznMap.get(emlEntry.getPzn());
             }
 
-            // Try ATC match if no PZN match
+            // 3. Try ATC match if still no match
             if (match == null && emlEntry.getAtcCode() != null && emlEntry.getAtcCode().length() >= 5) {
                 match = empAtcMap.get(emlEntry.getAtcCode().substring(0, 5));
             }

@@ -9,7 +9,32 @@ sap.ui.define([
     return Controller.extend("epa.controller.AddMedicationDialog", {
 
         onInit: function () {
-            // Init logic if needed
+            // Model will be lazily initialized via _getEntryModel()
+        },
+
+        /**
+         * Lazily gets or creates the 'entry' model.
+         * @returns {sap.ui.model.json.JSONModel} The entry model
+         * @private
+         */
+        _getEntryModel: function () {
+            var oModel = this.getView().getModel("entry");
+            if (!oModel) {
+                oModel = new JSONModel({
+                    medicationName: "",
+                    pzn: "",
+                    strength: "",
+                    activeIngredient: "",
+                    dosageStructured: "",
+                    dosageText: "",
+                    intakeInstructions: "",
+                    indication: "",
+                    note: "",
+                    entryType: "manual"
+                });
+                this.getView().setModel(oModel, "entry");
+            }
+            return oModel;
         },
 
         // Helper to get parent view (set in index.html)
@@ -30,18 +55,23 @@ sap.ui.define([
             this._editMode = true;
             this._editEntryId = entryId;
 
-            // Pre-fill form fields
-            var oView = this._getParentView();
-            oView.byId("inputPZN").setValue(entryData.pzn || "");
-            oView.byId("inputMedicationName").setValue(entryData.medicationName || "");
-            oView.byId("inputStrength").setValue(entryData.strength || "");
-            oView.byId("inputActiveIngredient").setValue(entryData.activeIngredient || "");
-            oView.byId("inputDosageStructured").setValue(entryData.dosageStructured || "");
-            oView.byId("inputDosageText").setValue(entryData.dosageText || "");
-            oView.byId("inputIntakeInstructions").setValue(entryData.intakeInstructions || "");
-            oView.byId("inputIndication").setValue(entryData.indication || "");
+            // Update model data
+            var oModel = this._getEntryModel();
+            oModel.setData({
+                pzn: entryData.pzn || "",
+                medicationName: entryData.medicationName || "",
+                strength: entryData.strength || "",
+                activeIngredient: entryData.activeIngredient || "",
+                dosageStructured: entryData.dosageStructured || "",
+                dosageText: entryData.dosageText || "",
+                intakeInstructions: entryData.intakeInstructions || "",
+                indication: entryData.indication || "",
+                note: entryData.note || "",
+                entryType: entryData.entryType || "manual"
+            });
 
             // Update dialog title
+            var oView = this._getParentView();
             var oDialog = oView.byId("addMedicationDialog");
             if (oDialog) {
                 oDialog.setTitle("Edit Medication");
@@ -55,11 +85,78 @@ sap.ui.define([
             this._editMode = false;
             this._editEntryId = null;
 
+            // Reset model data
+            var oModel = this._getEntryModel();
+            oModel.setData({
+                medicationName: "",
+                pzn: "",
+                strength: "",
+                activeIngredient: "",
+                dosageStructured: "",
+                dosageText: "",
+                intakeInstructions: "",
+                indication: "",
+                note: "",
+                entryType: "manual"
+            });
+
             // Reset dialog title
             var oView = this._getParentView();
             var oDialog = oView.byId("addMedicationDialog");
             if (oDialog) {
                 oDialog.setTitle("Add Medication");
+            }
+        },
+
+        onNameSuggest: function (oEvent) {
+            var sValue = oEvent.getParameter("suggestValue");
+            var oInput = oEvent.getSource();
+
+            if (sValue.length < 2) {
+                return;
+            }
+
+            fetch("/api/medications/search?query=" + encodeURIComponent(sValue))
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    var oModel = new JSONModel({
+                        suggestions: data
+                    });
+                    oInput.setModel(oModel);
+                })
+                .catch(function (err) {
+                    console.error("Search failed", err);
+                });
+        },
+
+        onSuggestionItemSelected: function (oEvent) {
+            var oItem = oEvent.getParameter("selectedItem");
+            // Suggestions model is set on the Input control, so getBindingContext() works relative to that
+            var oData = oItem.getBindingContext().getObject();
+
+            if (oData) {
+                this.fillFields(oData);
+            }
+        },
+
+        fillFields: function (oData) {
+            var oModel = this._getEntryModel();
+            // Update model properties. We use setProperty to trigger UI updates.
+            // Or just merge data into the current object.
+            var oCurrentData = oModel.getData();
+
+            // Map fields
+            oCurrentData.pzn = oData.pzn || oCurrentData.pzn;
+            oCurrentData.medicationName = oData.medicationName || oCurrentData.medicationName;
+            oCurrentData.strength = oData.strength || oCurrentData.strength;
+            oCurrentData.activeIngredient = oData.activeIngredient || oCurrentData.activeIngredient;
+            oCurrentData.dosageStructured = oData.dosageStructured || oCurrentData.dosageStructured;
+            oCurrentData.dosageText = oData.dosageText || oCurrentData.dosageText;
+            oCurrentData.indication = oData.indication || oCurrentData.indication;
+
+            oModel.setData(oCurrentData);
+            if (oData.medicationName) {
+                MessageToast.show("Selected: " + oData.medicationName);
             }
         },
 
@@ -70,54 +167,42 @@ sap.ui.define([
                 return;
             }
 
-            // Mock PZN Lookup
-            var oMockData = this._mockPZNLookup(sPZN);
-
-            if (oMockData) {
-                // Use parent view's byId since controls are prefixed with parent view ID
-                var oView = this._getParentView();
-
-                oView.byId("inputMedicationName").setValue(oMockData.medicationName);
-                oView.byId("inputStrength").setValue(oMockData.strength);
-                oView.byId("inputActiveIngredient").setValue(oMockData.activeIngredient);
-                oView.byId("inputDosageStructured").setValue(oMockData.dosageStructured);
-
-                MessageToast.show("PZN found: " + oMockData.medicationName);
-            } else {
-                MessageToast.show("PZN not found (Mock database)");
-            }
+            // Backend Search
+            var that = this;
+            this.getView().setBusy(true);
+            fetch("/api/medications/search?query=" + encodeURIComponent(sPZN))
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    // Try to find exact PZN match
+                    var oMatch = data.find(function (m) { return m.pzn === sPZN; });
+                    if (oMatch) {
+                        that.fillFields(oMatch);
+                    } else {
+                        MessageBox.information("PZN " + sPZN + " not found in medication database.");
+                    }
+                })
+                .catch(function (err) {
+                    console.error("PZN lookup failed", err);
+                    MessageBox.error("Medication search failed. Please try again later.");
+                })
+                .finally(function () {
+                    that.getView().setBusy(false);
+                });
         },
 
         _mockPZNLookup: function (sPZN) {
-            var mDatabase = {
-                "12345678": {
-                    medicationName: "Ibuprofen 400mg",
-                    strength: "400mg",
-                    activeIngredient: "Ibuprofen",
-                    dosageStructured: "1-0-1-0"
-                },
-                "87654321": {
-                    medicationName: "Paracetamol 500mg",
-                    strength: "500mg",
-                    activeIngredient: "Paracetamol",
-                    dosageStructured: "1-1-1-1"
-                },
-                "11223344": {
-                    medicationName: "Aspirin 100mg",
-                    strength: "100mg",
-                    activeIngredient: "Acetylsalicylsäure",
-                    dosageStructured: "1-0-0-0"
-                }
-            };
-            return mDatabase[sPZN];
+            // Deprecated, using backend
+            return null;
         },
 
         onSaveMedication: function () {
-            var oView = this._getParentView();
-            var sName = oView.byId("inputMedicationName").getValue();
-            var sPZN = oView.byId("inputPZN").getValue();
-            var sDosageStruct = oView.byId("inputDosageStructured").getValue();
-            var sDosageText = oView.byId("inputDosageText").getValue();
+            var oModel = this._getEntryModel();
+            var oData = oModel.getData();
+
+            var sName = oData.medicationName;
+            var sPZN = oData.pzn;
+            var sDosageStruct = oData.dosageStructured;
+            var sDosageText = oData.dosageText;
 
             // Validation
             if (!sName || !sPZN) {
@@ -134,14 +219,14 @@ sap.ui.define([
             var oEntry = {
                 medicationName: sName,
                 pzn: sPZN,
-                strength: oView.byId("inputStrength").getValue(),
-                activeIngredient: oView.byId("inputActiveIngredient").getValue(),
+                strength: oData.strength,
+                activeIngredient: oData.activeIngredient,
                 dosageStructured: sDosageStruct,
                 dosageText: sDosageText,
-                intakeInstructions: oView.byId("inputInstructions").getValue(),
-                note: oView.byId("inputNote").getValue(),
-                indication: oView.byId("inputIndication").getValue(),
-                entryType: oView.byId("selectEntryType").getSelectedKey(),
+                intakeInstructions: oData.intakeInstructions,
+                note: oData.note,
+                indication: oData.indication,
+                entryType: oData.entryType,
                 authoredDate: new Date().toISOString()
             };
 
@@ -163,6 +248,7 @@ sap.ui.define([
                 sMethod = "PUT";
             }
 
+            this.getView().setBusy(true);
             fetch(sUrl, {
                 method: sMethod,
                 headers: { "Content-Type": "application/json" },
@@ -181,16 +267,16 @@ sap.ui.define([
                                     }
                                 });
                             } else {
-                                MessageBox.warning("Duplicate detected but could not open comparison dialog.");
+                                MessageBox.warning("A similar medication already exists in the plan.");
                             }
                         });
                     }
 
-                    if (!response.ok) throw new Error("Failed to save");
+                    if (!response.ok) throw new Error("Server returned " + response.status);
                     return response.json();
                 })
                 .then(function (updatedPlan) {
-                    var sMessage = that._editMode ? "Medication updated successfully" : "Medication added successfully";
+                    var sMessage = that._editMode ? "Medication updated successfully" : "Medication added to plan";
                     MessageToast.show(sMessage);
 
                     if (that._editMode) {
@@ -206,8 +292,11 @@ sap.ui.define([
                 })
                 .catch(function (err) {
                     if (!err.message.includes("Duplicate")) {
-                        MessageBox.error("Error: " + err.message);
+                        MessageBox.error("Failed to save medication: " + err.message);
                     }
+                })
+                .finally(function () {
+                    that.getView().setBusy(false);
                 });
         },
 

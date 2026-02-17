@@ -11,7 +11,7 @@
 
 - Q: What is the home screen / patient selection UI navigation pattern? → A: Search-first approach with recent patients sidebar: Home screen shows KVNR search box prominently, plus sidebar with recently viewed patients (last 5-10).
 - Q: How should users navigate between eML and eMP within a patient view? → A: Tab-based navigation: Patient view has two tabs "eML (History)" and "eMP (Current Plan)". Clicking tabs switches between views while staying in patient context.
-- Q: How should patient and medication data be provided for UI prototype demonstration? → A: Pre-loaded JSON fixtures with 2-3 sample patients (diverse scenarios). eGK card reading is real (uses actual smartcard-playground implementation, not mocked).
+- Q: How should patient and medication data be provided for UI prototype demonstration? → A: Pre-loaded JSON fixtures with 2-3 sample patients (diverse scenarios).
 - Q: Where should CRUD action buttons be located in the eMP tab? → A: Toolbar above table + row-level action icons: "Add Medication" button in toolbar. Each medication row has inline action icons (edit, pause, delete).
 - Q: How should users access the reconciliation view to compare eML and eMP? → A: Dedicated "Reconciliation" third tab alongside eML and eMP tabs, displaying split-view with highlighted discrepancies.
 - Q: When duplicate medications are detected during add/edit, where should the match results appear? → A: Modal dialog with match results showing side-by-side comparison and radio buttons for "Update existing" / "Create new".
@@ -28,11 +28,11 @@ As a healthcare provider, I need a home screen where I can search for a patient 
 
 **Why this priority**: This is the entry point to the entire application. Without patient selection UI, no other user stories are reachable. This must be implemented first as the navigation foundation.
 
-**Independent Test**: Can be fully tested by displaying a home screen with a prominent KVNR search input field, a "Read from eGK" button, and a sidebar showing recently viewed patients (last 5-10). Clicking a recent patient or searching by KVNR navigates to that patient's medication view.
+**Independent Test**: Can be fully tested by displaying a home screen with a prominent KVNR search input field, and a sidebar showing recently viewed patients (last 5-10). Clicking a recent patient or searching by KVNR navigates to that patient's medication view.
 
 **Acceptance Scenarios**:
 
-1. **Given** the healthcare provider opens the application, **When** the home screen loads, **Then** the system displays a prominent KVNR search input field and a "Read from eGK Card" button
+1. **Given** the healthcare provider opens the application, **When** the home screen loads, **Then** the system displays a prominent KVNR search input field
 2. **Given** the home screen is displayed, **When** the provider looks at the sidebar, **Then** the system shows a list of recently viewed patients (up to 10) with their name and KVNR
 3. **Given** the provider enters a KVNR in the search field, **When** they submit the search, **Then** the system navigates to that patient's medication view (eML/eMP tabs)
 4. **Given** the sidebar shows recent patients, **When** the provider clicks on a recent patient entry, **Then** the system navigates to that patient's medication view
@@ -74,23 +74,7 @@ As a healthcare provider, I need to view the patient's current active medication
 
 ---
 
-### User Story 3 - Read Patient Data from eGK Card (Priority: P1)
-
-As a healthcare provider, I need to read patient data directly from the electronic health insurance card (eGK) inserted into my card reader so that I can automatically populate patient identification (KVNR) and demographics without manual entry.
-
-**Why this priority**: Automatic patient identification from the eGK card is fundamental to the German TI workflow and eliminates manual data entry errors. This is a core capability that should be available from the start alongside viewing capabilities.
-
-**Independent Test**: Can be fully tested by inserting an eGK card into a connected card reader, triggering the card read operation, and verifying that patient demographics XML is read from the EF.PD file, parsed, and used to populate the patient KVNR and demographic fields.
-
-**Acceptance Scenarios**:
-
-1. **Given** an eGK card is inserted into a connected card reader, **When** the healthcare provider initiates "Read from Card", **Then** the system selects the HCA application on the card, reads the EF.PD file, decompresses the patient demographics XML (BER-TLV → GZIP → XML), and displays the patient KVNR
-2. **Given** patient demographics are successfully read from the eGK, **When** the data is parsed, **Then** the system auto-populates patient identification fields including KVNR, name, date of birth, and insurance information
-3. **Given** the eGK card reader is not connected or no card is inserted, **When** the user attempts to read from card, **Then** the system displays an appropriate error message and allows manual KVNR entry as fallback
-
----
-
-### User Story 4 - Match New Medication Against eMP (Priority: P2)
+### User Story 3 - Match New Medication Against eMP (Priority: P2)
 
 As a physician, when I prescribe a new medication, I need the system to check if the active ingredient already exists in the patient's medication plan so that I can avoid creating duplicate entries and decide whether to update an existing entry or create a new one.
 
@@ -106,7 +90,7 @@ As a physician, when I prescribe a new medication, I need the system to check if
 
 ---
 
-### User Story 5 - Reconcile eML and eMP Discrepancies (Priority: P3)
+### User Story 4 - Reconcile eML and eMP Discrepancies (Priority: P3)
 
 As a pharmacist or physician, I need to identify medications that appear in the historical list (eML) but not in the current plan (eMP) so that I can reconcile gaps and add missing medications to the active therapy plan.
 
@@ -122,7 +106,7 @@ As a pharmacist or physician, I need to identify medications that appear in the 
 
 ---
 
-### User Story 6 - Create Manual eMP Entry (Priority: P2)
+### User Story 5 - Create Manual eMP Entry (Priority: P2)
 
 As a pharmacist or physician, I need to manually add a medication entry to the eMP (e.g., for OTC medications or missing prescriptions) so that the medication plan accurately reflects all medications the patient is taking.
 
@@ -138,7 +122,7 @@ As a pharmacist or physician, I need to manually add a medication entry to the e
 
 ---
 
-### User Story 7 - Edit Existing eMP Entry (Priority: P2)
+### User Story 6 - Edit Existing eMP Entry (Priority: P2)
 
 As a healthcare provider, I need to modify dosage instructions or intake notes for an existing medication in the eMP so that the plan reflects current therapy adjustments.
 
@@ -154,7 +138,7 @@ As a healthcare provider, I need to modify dosage instructions or intake notes f
 
 ---
 
-### User Story 8 - Manage Medication Status (Priority: P2)
+### User Story 7 - Manage Medication Status (Priority: P2)
 
 As a healthcare provider, I need to pause, reactivate, or end a medication therapy entry in the eMP so that the plan accurately reflects the current treatment status.
 
@@ -170,7 +154,7 @@ As a healthcare provider, I need to pause, reactivate, or end a medication thera
 
 ---
 
-### User Story 9 - Link eML Entry to eMP Entry (Priority: P3)
+### User Story 8 - Link eML Entry to eMP Entry (Priority: P3)
 
 As a healthcare provider, I need to create logical links between historical dispensement records (eML) and medication plan entries (eMP) so that I can track which dispensements correspond to which therapy plan lines.
 
@@ -186,7 +170,7 @@ As a healthcare provider, I need to create logical links between historical disp
 
 ---
 
-### User Story 10 - Integrate eMP Update with Prescription Workflow (Priority: P3)
+### User Story 9 - Integrate eMP Update with Prescription Workflow (Priority: P3)
 
 As a physician, when I create a new e-prescription (eRezept), I need the option to simultaneously update the patient's eMP so that the medication plan stays synchronized with prescribing activity.
 
@@ -202,7 +186,7 @@ As a physician, when I create a new e-prescription (eRezept), I need the option 
 
 ---
 
-### User Story 11 - Integrate eMP Update with Dispensing Workflow (Priority: P3)
+### User Story 10 - Integrate eMP Update with Dispensing Workflow (Priority: P3)
 
 As a pharmacist, when I dispense a medication and record the dispensement, I need the option to update the eMP if the dispensed product differs from what was prescribed (e.g., generic substitution) so that the plan reflects what the patient actually received.
 
@@ -218,7 +202,7 @@ As a pharmacist, when I dispense a medication and record the dispensement, I nee
 
 ---
 
-### User Story 12 - Export Medication Plan (PDF) (Priority: P3)
+### User Story 11 - Export Medication Plan (PDF) (Priority: P3)
 
 As a healthcare provider, I need to generate a PDF export of the eMP in the standard Bundesmedikationsplan format so that the patient can receive a printed copy of their medication plan.
 
@@ -234,7 +218,7 @@ As a healthcare provider, I need to generate a PDF export of the eMP in the stan
 
 ---
 
-### User Story 13 - AMTS Safety Check (Simulation) (Priority: P4)
+### User Story 12 - AMTS Safety Check (Simulation) (Priority: P4)
 
 As a healthcare provider, I need to trigger a medication therapy safety check (AMTS) on the current eMP so that potential drug interactions, contraindications, or safety issues are identified and displayed.
 
@@ -254,9 +238,9 @@ As a healthcare provider, I need to trigger a medication therapy safety check (A
 
 The following features are **explicitly out of scope** for the initial UI-centric prototype and will be implemented in a later phase:
 
-- **User Story 10 - Prescription Workflow Integration**: Integration with e-prescription (eRezept) creation workflow. This requires full prescription workflow infrastructure beyond the medication management UI. The "Add to eMP" checkbox during prescription creation will be deferred until the prescription workflow exists.
+- **User Story 9 - Prescription Workflow Integration**: Integration with e-prescription (eRezept) creation workflow. This requires full prescription workflow infrastructure beyond the medication management UI. The "Add to eMP" checkbox during prescription creation will be deferred until the prescription workflow exists.
 
-- **User Story 11 - Dispensing Workflow Integration**: Integration with dispensement recording workflow. This requires full pharmacy dispensing infrastructure. The "Update eMP with dispensed product" option will be deferred until the dispensing workflow exists.
+- **User Story 110 - Dispensing Workflow Integration**: Integration with dispensement recording workflow. This requires full pharmacy dispensing infrastructure. The "Update eMP with dispensed product" option will be deferred until the dispensing workflow exists.
 
 **Rationale**: These are P3 priority advanced integration features that depend on external workflows not part of the medication management UI scope. All P1-P2 features are fully accessible in the designed UI.
 
@@ -265,9 +249,6 @@ The following features are **explicitly out of scope** for the initial UI-centri
 ### Edge Cases
 
 - What happens when a patient has no existing eML or eMP data? (System should display empty state with guidance)
-- What happens when the eGK card reader is not connected or not recognized? (System displays error and allows manual KVNR entry)
-- What happens when an eGK card is removed during read operation? (System displays error and allows retry or manual entry)
-- What happens when the eGK patient data (EF.PD) is corrupted or cannot be decompressed? (System logs error and falls back to manual entry)
 - How does the system handle medication entries with incomplete data (e.g., missing dosage)? (Display with warning indicator, allow editing)
 - What happens when the PZN catalog search returns no results? (Allow free-text entry as fallback)
 - How does the system handle concurrent edits by multiple healthcare providers? (Implement optimistic locking or display conflict resolution UI)
@@ -282,7 +263,6 @@ The following features are **explicitly out of scope** for the initial UI-centri
 
 - **FR-000**: System MUST provide a home screen as the application entry point with patient search and selection capabilities
 - **FR-001a**: Home screen MUST display a prominent KVNR search input field
-- **FR-001b**: Home screen MUST display a "Read from eGK Card" button to trigger card reading workflow
 - **FR-001c**: Home screen MUST display a sidebar showing recently viewed patients (up to 10 entries)
 - **FR-001d**: Recent patients sidebar MUST show patient name and KVNR for each entry
 - **FR-001e**: System MUST navigate to patient medication view when KVNR is entered in search field
@@ -299,8 +279,6 @@ The following features are **explicitly out of scope** for the initial UI-centri
 
 - **FR-002a**: System MUST load patient and medication data from pre-configured JSON fixture files containing 2-3 sample patients
 - **FR-002b**: JSON fixtures MUST include diverse scenarios: patient with many medications, patient with few medications, patient with empty eML/eMP
-- **FR-001o**: eGK card reading functionality MUST be real (not mocked), using the actual smartcard-playground implementation to read patient demographics from physical cards
-- **FR-001p**: When eGK card is read successfully, patient data from card MUST be used to populate patient fields (KVNR, name, DOB) even if that patient is not in the JSON fixtures
 - **FR-001q**: For UI prototype purposes, medication data (eML/eMP) beyond patient demographics MUST come from JSON fixtures (no real TI backend calls)
 
 #### Medication Data Display
@@ -337,12 +315,6 @@ The following features are **explicitly out of scope** for the initial UI-centri
 - **FR-018** *(Out of Scope - Deferred)*: System MUST integrate with dispensing workflow by providing option to update eMP with actually dispensed product (PZN)
 - **FR-019**: System MUST generate PDF export of eMP formatted according to Bundesmedikationsplan standards
 - **FR-020**: System MUST provide simulated AMTS (medication therapy safety) check functionality that displays warnings for potential interactions
-- **FR-021**: System MUST support reading patient data from eGK card inserted into PC/SC compatible card reader
-- **FR-022**: System MUST select HCA application on eGK card and read EF.PD (Patient Demographics) file
-- **FR-023**: System MUST decompress patient demographics data from BER-TLV encoded GZIP format to XML
-- **FR-024**: System MUST parse patient demographics XML and extract KVNR, name, date of birth, and insurance information
-- **FR-025**: System MUST provide fallback to manual KVNR entry when card reader is unavailable or card read fails
-- **FR-026**: System MUST identify patients using KVNR (Krankenversichertennummer) from eGK or manual entry
 - **FR-027**: System MUST include organization identification (Telematik-ID, Name) for the requesting healthcare organization
 - **FR-028**: System MUST handle empty states gracefully when patient has no eML or eMP data
 - **FR-029**: System MUST allow free-text medication entry as fallback when PZN search returns no results
@@ -368,7 +340,6 @@ The following features are **explicitly out of scope** for the initial UI-centri
 
 ### Measurable Outcomes
 
-- **SC-001**: Healthcare providers can read patient data from an inserted eGK card and populate KVNR in under 5 seconds
 - **SC-002**: Healthcare providers can view a patient's complete eML (all historical prescriptions and dispensements) in under 3 seconds after entering the KVNR
 - **SC-003**: Healthcare providers can view a patient's current eMP (all active, paused, and planned medications) in under 3 seconds after entering the KVNR
 - **SC-004**: The duplicate detection algorithm identifies matches with at least 95% accuracy when comparing by ATC/ASK code or PZN
@@ -378,4 +349,4 @@ The following features are **explicitly out of scope** for the initial UI-centri
 - **SC-008**: The UI clearly distinguishes between active, paused, and completed medications such that 90% of users can identify the status without assistance
 - **SC-009**: PDF export generates a valid Bundesmedikationsplan-formatted document containing all active medications in under 5 seconds
 - **SC-010**: AMTS safety check displays interaction warnings within 3 seconds of being triggered
-- **SC-011**: The system handles edge cases (empty data, incomplete entries, card reader errors, concurrent edits) gracefully with appropriate user feedback in 100% of scenarios
+- **SC-011**: The system handles edge cases (empty data, incomplete entries, concurrent edits) gracefully with appropriate user feedback in 100% of scenarios

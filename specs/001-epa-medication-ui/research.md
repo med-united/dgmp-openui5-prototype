@@ -35,42 +35,38 @@ This document captures key technical decisions, architectural choices, and resea
 
 ### 2. Backend Architecture: Minimal Quarkus REST API
 
-**Decision**: Implement minimal Quarkus backend serving JSON fixtures + eGK card reading integration
+**Decision**: Implement minimal Quarkus backend serving JSON fixtures
 
 **Rationale**:
 - **Prototype Scope**: Spec clarifications explicitly state "UI-centric prototype without full backend logic"
-- **Constitution Compliance**: Quarkus 3.x is mandated technology; maintains consistency with project stack
-- **eGK Integration**: Real card reading requires Java-based smartcard-playground library integration (not browser-based)
 - **CORS Support**: Quarkus provides easy CORS configuration for local development
 - **Fast Startup**: Quarkus dev mode supports rapid iteration during UI development
 
 **Alternatives Considered**:
-- JSON Server (Node.js): Simple mock API but can't integrate with Java smartcard library
-- Frontend-only (no backend): Cannot implement real eGK card reading (requires PC/SC access)
+- JSON Server (Node.js): Simple mock API but adds extra dependency
 - Full Spring Boot: Heavier stack than needed for prototype scope
 
 **Implementation Approach**:
-- JAX-RS resources for: `/api/patients`, `/api/medications`, `/api/cardreader`
+- JAX-RS resources for: `/api/patients`, `/api/medications`
 - Service layer loads JSON fixtures from `src/main/resources/fixtures/`
-- CardReaderService wraps smartcard-playground calls for `EFPDReader` integration
 - Minimal state management (session-based, no database)
 
 ---
 
-### 3. Data Strategy: JSON Fixtures + Real eGK
+### 3. Data Strategy: JSON Fixtures
 
-**Decision**: Pre-loaded JSON fixtures for medication data, real eGK reading for patient demographics
+**Decision**: Pre-loaded JSON fixtures for patient and medication data
 
 **Rationale**:
-- **Clarification Answer 3**: User selected "Option B - Pre-loaded JSON fixtures with 2-3 sample patients" with note that "eGK reading is real"
+- **Clarification Answer 3**: User selected "Option B - Pre-loaded JSON fixtures with 2-3 sample patients"
 - **UI Testing**: Fixtures allow comprehensive UI scenario testing without backend complexity
-- **Demo Realism**: Real eGK reading demonstrates actual TI integration capability
-- **Separation of Concerns**: Patient data (from card) vs medication data (demo fixtures) clearly separated
+- **Demo Capability**: Provides realistic data for demonstrating all UI features
+- **Simplicity**: Avoids need for database or external integrations in prototype
 
 **Alternatives Considered**:
 - Hardcoded mock data: Less flexible for testing different scenarios
 - Full TI backend: Out of scope for UI-centric prototype
-- Session-based only: Requires eGK card for every demo (inconvenient)
+- Database-backed: Adds unnecessary complexity for prototype
 
 **Implementation Approach**:
 - Create `fixtures/patients.json` with 2-3 diverse patients:
@@ -78,8 +74,7 @@ This document captures key technical decisions, architectural choices, and resea
   - Patient B: Few medications (2-3) to test normal case
   - Patient C: Empty eML/eMP to test empty states
 - Each fixture file uses valid FHIR MedicationStatement/MedicationRequest JSON structure
-- eGK read populates patient fields (KVNR, name, DOB) even if not in fixtures
-- Medication data for newly read patients shows empty state (fixtures don't exist yet)
+- Patient search by KVNR loads corresponding fixture data
 
 ---
 
@@ -180,31 +175,7 @@ This document captures key technical decisions, architectural choices, and resea
 
 ---
 
-### 8. eGK Card Reading Integration
-
-**Decision**: Backend CardReaderService wraps smartcard-playground library for PC/SC access
-
-**Rationale**:
-- **Existing Implementation**: smartcard-playground project already has working `EFPDReader` implementation
-- **Browser Limitation**: Web browsers cannot directly access PC/SC smart card readers (security restriction)
-- **Real Hardware**: User Story 3 and clarifications specify real eGK reading, not simulation
-- **Proven Code**: Reuse existing tested implementation from `EFPDReaderImpl.java`
-
-**Alternatives Considered**:
-- Browser WebUSB API: Does not support PC/SC protocol
-- Simulated card data: Not aligned with spec requirement for real eGK reading
-- Separate card reading service: Adds deployment complexity
-
-**Implementation Approach**:
-- Backend endpoint: `POST /api/cardreader/read-patient`
-- CardReaderService dependencies: `javax.smartcardio`, `com.payneteasy.tlv` (from smartcard-playground)
-- Response: PatientDemographics POJO with KVNR, name, DOB extracted from EF.PD
-- Frontend: Button "Read from eGK Card" triggers API call, shows loading indicator
-- Error handling: Card reader errors (disconnected, removed card, corrupted data) from spec edge cases
-
----
-
-### 9. PDF Export: Bundesmedikationsplan Format
+### 8. PDF Export: Bundesmedikationsplan Format
 
 **Decision**: Generate PDF on backend using FHIR data → Bundesmedikationsplan template
 
@@ -226,7 +197,7 @@ This document captures key technical decisions, architectural choices, and resea
 
 ---
 
-### 10. AMTS Safety Check: Simulated Warnings
+### 9. AMTS Safety Check: Simulated Warnings
 
 **Decision**: Frontend-based simulated AMTS check with hardcoded interaction rules
 
@@ -257,7 +228,6 @@ This document captures key technical decisions, architectural choices, and resea
 | **Backend** | Quarkus | 3.11+ | REST API server |
 | **Runtime** | Java | 17+ | Backend execution |
 | **FHIR** | HAPI FHIR | 7.x (Jakarta) | FHIR resource parsing/validation |
-| **Card Reading** | smartcard-playground | Current | eGK PC/SC integration |
 | **Testing (Backend)** | JUnit 5, RestAssured | Latest | Unit and API tests |
 | **Testing (Frontend)** | QUnit, OPA5 | OpenUI5 bundled | Unit and journey tests |
 | **Build** | Maven | 3.8+ | Build and dependency management |
@@ -270,12 +240,10 @@ This document captures key technical decisions, architectural choices, and resea
 ### Low Risk
 - **Bundesmedikationsplan Layout Details**: Exact specification for PDF format may need refinement during implementation
 - **OpenUI5 CDN Version**: Specific 1.120.x patch version to be determined (use latest stable)
-- **eGK Card Availability**: Demo requires physical eGK card + reader for full testing
 
 ### Mitigations
 - Bundesmedikationsplan: Use simplified layout for prototype; can be enhanced later with exact specifications
 - OpenUI5 Version: Pin to specific known-stable version after initial testing
-- eGK Testing: Maintain JSON fixtures as primary testing data; eGK is additional validation
 
 ---
 

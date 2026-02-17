@@ -6,9 +6,9 @@
 
 ## Summary
 
-Implement an OpenUI5 UX prototype for ePA Medication Service that enables healthcare providers to view, manage, and reconcile patient medications through three core views: electronic Medication List (eML - historical data), electronic Medication Plan (eMP - current therapy plan), and a Reconciliation view for gap analysis. The prototype integrates real eGK card reading for patient demographics while using JSON fixtures for medication data demonstration. Core features include patient selection, tab-based navigation, CRUD operations for medication plans, duplicate detection, linking between historical and planned medications, PDF export, and simulated AMTS safety checks.
+Implement an OpenUI5 UX prototype for ePA Medication Service that enables healthcare providers to view, manage, and reconcile patient medications through three core views: electronic Medication List (eML - historical data), electronic Medication Plan (eMP - current therapy plan), and a Reconciliation view for gap analysis. The prototype uses JSON fixtures for patient and medication data demonstration. Core features include patient selection, tab-based navigation, CRUD operations for medication plans, duplicate detection, linking between historical and planned medications, PDF export, and simulated AMTS safety checks.
 
-**Technical approach**: Web-based single-page application using OpenUI5 for the frontend with minimal Quarkus REST backend to serve mock data and provide eGK card reading integration via existing smartcard-playground implementation.
+**Technical approach**: Web-based single-page application using OpenUI5 for the frontend with minimal Quarkus REST backend to serve mock data from JSON fixtures.
 
 ## Technical Context
 

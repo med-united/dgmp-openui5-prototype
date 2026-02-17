@@ -244,6 +244,7 @@ Per plan.md:
 - [x] T112 [US7] Refresh eMP table after successful edit
 - [x] T112a [US7] Refine Add Medication flow to select from eML first
 - [x] T112b [US7] Fix TypeError in Add Medication dialog opening
+- [x] T112c [US7] Verify with user what should work and how to test it
 
 **Checkpoint**: Edit functionality works. Dosage/instructions editable, plan version tracks changes.
 
@@ -257,18 +258,18 @@ Per plan.md:
 
 ### Implementation for User Story 8
 
-- [ ] T113 [US8] Implement PATCH /api/medications/plan/{kvnr}/entries/{entryId}/status endpoint in MedicationResource.java
-- [ ] T114 [US8] Implement DELETE /api/medications/plan/{kvnr}/entries/{entryId} endpoint in MedicationResource.java
-- [ ] T115 [US8] Add changeStatus method in MedicationService.java with state machine validation
-- [ ] T116 [P] [US8] Add FR-010: Pause/reactivate/complete status transitions
-- [ ] T117 [P] [US8] Add FR-011: Status change validation (active→paused, paused→active, active/paused→completed)
-- [ ] T118 [P] [US8] Add FR-012: Visual distinction for paused medications (grayed out styling)
-- [ ] T119 [P] [US8] Add status transition validation: completed is terminal state
-- [ ] T120 [US8] Wire pause icon to PATCH status=paused
-- [ ] T121 [US8] Wire reactivate icon to PATCH status=active
-- [ ] T122 [US8] Wire delete icon to show confirmation dialog then DELETE
-- [ ] T123 [P] [US8] Add CSS styling for paused entries
-- [ ] T124 [US8] Refresh eMP table after status change
+- [x] T113 [US8] Implement PATCH /api/medications/plan/{kvnr}/entries/{entryId}/status endpoint in MedicationResource.java
+- [x] T114 [US8] Implement DELETE /api/medications/plan/{kvnr}/entries/{entryId} endpoint in MedicationResource.java
+- [x] T115 [US8] Add changeStatus method in MedicationService.java with state machine validation
+- [x] T116 [P] [US8] Add FR-010: Pause/reactivate/complete status transitions
+- [x] T117 [P] [US8] Add FR-011: Status change validation (active→paused, paused→active, active/paused→completed)
+- [x] T118 [P] [US8] Add FR-012: Visual distinction for paused medications (grayed out styling)
+- [x] T119 [P] [US8] Add status transition validation: completed is terminal state
+- [x] T120 [US8] Wire pause icon to PATCH status=paused
+- [x] T121 [US8] Wire reactivate icon to PATCH status=active
+- [x] T122 [US8] Wire delete icon to show confirmation dialog then DELETE
+- [x] T123 [P] [US8] Add CSS styling for paused entries
+- [x] T124 [US8] Refresh eMP table after status change
 
 **Checkpoint**: Status management works. Pause/reactivate/delete functional with proper UI feedback.
 
@@ -282,19 +283,19 @@ Per plan.md:
 
 ### Implementation for User Story 9
 
-- [ ] T125 [US9] Implement POST /api/medications/link endpoint in MedicationResource.java
-- [ ] T126 [US9] Implement DELETE /api/medications/link endpoint in MedicationResource.java
-- [ ] T127 [US9] Add createLink and removeLink methods in MedicationService.java
-- [ ] T128 [P] [US9] Add FR-013: Logical linking between eML (MedicationStatement.id) and eMP (MedicationRequest.id)
-- [ ] T129 [P] [US9] Add FR-013a: Link action icon in each eML row
-- [ ] T130 [P] [US9] Add FR-013b: Context menu on unlinked entry shows available eMP entries
-- [ ] T131 [P] [US9] Add FR-013c: Linked entries display badge or icon
-- [ ] T132 [P] [US9] Add FR-013d: Context menu on linked entry shows "Unlink" option
-- [ ] T133 [P] [US9] Update MedicationListEntry to include linkedToPlanId field
-- [ ] T134 [US9] Add link icon column to eML table in MedicationList.view.xml
-- [ ] T135 [US9] Create ActionSheet/Menu component for link selection in MedicationList.controller.js
-- [ ] T136 [US9] Store link associations in session (persist linkedToPlanId)
-- [ ] T137 [US9] Update eML table to show linked badge when linkedToPlanId is set
+- [x] T125 [US9] Implement POST /api/medications/link endpoint in MedicationResource.java
+- [x] T126 [US9] Implement DELETE /api/medications/link endpoint in MedicationResource.java
+- [x] T127 [US9] Add createLink and removeLink methods in MedicationService.java
+- [x] T128 [P] [US9] Add FR-013: Logical linking between eML (MedicationStatement.id) and eMP (MedicationRequest.id)
+- [x] T129 [P] [US9] Add FR-013a: Link action icon in each eML row
+- [x] T130 [P] [US9] Add FR-013b: Context menu on unlinked entry shows available eMP entries
+- [x] T131 [P] [US9] Add FR-013c: Linked entries display badge or icon
+- [x] T132 [P] [US9] Add FR-013d: Context menu on linked entry shows "Unlink" option
+- [x] T133 [P] [US9] Update MedicationListEntry to include linkedToPlanId field
+- [x] T134 [US9] Add link icon column to eML table in MedicationList.view.xml
+- [x] T135 [US9] Create ActionSheet/Menu component for link selection in MedicationList.controller.js
+- [x] T136 [US9] Store link associations in session (persist linkedToPlanId)
+- [x] T137 [US9] Update eML table to show linked badge when linkedToPlanId is set
 
 **Checkpoint**: Linking works. eML entries can link to eMP entries, associations visible in UI.
 
@@ -316,24 +317,24 @@ Per plan.md:
 
 ---
 
-## Phase 15: User Story 12 - Export Medication Plan (PDF) (Priority: P3)
+## Phase 15: User Story 12 - Export Medication Plan (PDF) (Priority: P3) ⚠️ SKIPPED
 
-**Goal**: "Export to PDF" button generates Bundesmedikationsplan PDF for download
+**Goal**: N/A - Feature descoped for prototype. Button remains in UI but triggers "Not Implemented" message.
 
-**Independent Test**: Click "Export to PDF" in eMP toolbar, verify PDF downloads with correct Bundesmedikationsplan layout showing all active medications with name, dosage, instructions, indication.
+**Note**: User explicitly requested to skip PDF generation for this prototype.
 
 ### Implementation for User Story 12
 
-- [ ] T138 [US12] Implement GET /api/medications/plan/{kvnr}/export-pdf endpoint in MedicationResource.java
-- [ ] T139 [US12] Create PDFGenerator service in src/main/java/de/servicehealth/epa/medication/PDFGenerator.java
-- [ ] T140 [US12] Add Apache PDFBox dependency to pom.xml (if not already added in T004)
-- [ ] T141 [P] [US12] Implement Bundesmedikationsplan template (header, patient demographics, medication table)
-- [ ] T142 [P] [US12] Add PDF generation logic: map MedicationPlan to PDF document
-- [ ] T143 [P] [US12] Set Content-Disposition header for file download
-- [ ] T144 [US12] Wire "Export to PDF" toolbar button to trigger download
-- [ ] T145 [P] [US12] Add error handling for PDF generation failures
+- [x] T138 [US12] Wire "Export to PDF" toolbar button to show "Not enforced in prototype" message (Already present as placeholder)
+- [ ] T139 [US12] ~~Implement GET /api/medications/plan/{kvnr}/export-pdf endpoint in MedicationResource.java~~ (Skipped)
+- [ ] T140 [US12] ~~Create PDFGenerator service in src/main/java/de/servicehealth/epa/medication/PDFGenerator.java~~ (Skipped)
+- [ ] T141 [P] [US12] ~~Implement Bundesmedikationsplan template~~ (Skipped)
+- [ ] T142 [P] [US12] ~~Add PDF generation logic~~ (Skipped)
+- [ ] T143 [P] [US12] ~~Set Content-Disposition header~~ (Skipped)
+- [ ] T144 [US12] ~~Wire "Export to PDF" toolbar button to trigger download~~ (Skipped)
+- [ ] T145 [P] [US12] ~~Add error handling for PDF generation failures~~ (Skipped)
 
-**Checkpoint**: PDF export works. Clicking button downloads Bundesmedikationsplan-formatted PDF.
+**Checkpoint**: PDF Export skipped.
 
 ---
 
@@ -345,12 +346,19 @@ Per plan.md:
 
 ### Implementation for User Story 13
 
-- [ ] T146 [P] [US13] Create AMTSSimulator.js frontend module in webapp/model/AMTSSimulator.js
-- [ ] T147 [P] [US13] Define hardcoded interaction rules (e.g., Ibuprofen + Aspirin → warning)
-- [ ] T148 [P] [US13] Add checkInteractions method that returns array of warnings
-- [ ] T149 [US13] Wire "Run AMTS Check" toolbar button to call AMTSSimulator.checkInteractions
-- [ ] T150 [US13] Display results in MessageBox or Dialog (green for no issues, yellow/red for warnings)
-- [ ] T151 [P] [US13] Add at least 3 sample interaction rules for demo purposes
+#### Medication Database & Search (Prerequisites)
+- [x] T146 [US13] Create MedicationDatabase.java service with in-memory drug list (Ibuprofen, Aspirin, etc.)
+- [x] T147 [US13] Implement GET /api/medications/search endpoint in MedicationResource.java
+- [x] T148 [US13] Update AddMedicationDialog.fragment.xml to use SuggestionItems for name input
+- [x] T149 [US13] Implement onNameSuggest in AddMedicationDialog.controller.js to call search API
+
+#### AMTS Simulation
+- [x] T150 [P] [US13] Create AMTSSimulator.js frontend module in webapp/model/AMTSSimulator.js
+- [x] T151 [P] [US13] Define hardcoded interaction rules (e.g., Ibuprofen + Aspirin → warning)
+- [x] T152 [P] [US13] Add checkInteractions method that returns array of warnings
+- [x] T153 [US13] Wire "Run AMTS Check" toolbar button to call AMTSSimulator.checkInteractions
+- [x] T154 [US13] Display results in MessageBox or Dialog (green for no issues, yellow/red for warnings)
+- [x] T151 [P] [US13] Add at least 3 sample interaction rules for demo purposes
 
 **Checkpoint**: AMTS simulation works. Shows either success message or warnings based on active medications.
 
@@ -360,17 +368,21 @@ Per plan.md:
 
 **Purpose**: Final touches and quality improvements
 
-- [ ] T152 [P] Create empty state components for all views (empty eML, empty eMP, no recent patients)
-- [ ] T153 [P] Add loading spinners/indicators for all async operations
-- [ ] T154 [P] Add error message display for API failures (network errors, 404, 500)
-- [ ] T155 [P] Add success toast notifications for CRUD operations
-- [ ] T156 [P] Implement responsive design adjustments for smaller screens
-- [ ] T157 [P] Add keyboard navigation support (Ent key for search, tab navigation)
-- [ ] T158 [P] Add ARIA labels for accessibility (screen reader support)
-- [ ] T159 [P] Review and fix any console warnings/errors
-- [ ] T160 [P] Update README.md with setup and run instructions (or link to quickstart.md)
+- [x] T152 [P] Create empty state components for all views (empty eML, empty eMP, no recent patients)
+- [x] T153 [P] Add loading spinners/indicators for all async operations
+- [x] T154 [P] Add error message display for API failures (network errors, 404, 500)
+- [x] T155 [P] Add success toast notifications for CRUD operations
+- [x] T156 [P] Implement responsive design adjustments for smaller screens
+- [x] T157 [P] Add keyboard navigation support (Ent key for search, tab navigation)
+- [x] T158 [P] Add ARIA labels for accessibility (screen reader support)
+- [x] T159 [P] Review and fix any console warnings/errors
+- [x] T160 [P] Update README.md with setup and run instructions (or link to quickstart.md)
 
 **Checkpoint**: Application polished, error handling complete, accessibility improved.
+
+---
+**Note**: User Story 3 (Phase 18) is currently on hold as the smartcard library is local code and was skipped for now.
+---
 
 ---
 
@@ -465,33 +477,3 @@ Setup (T001-T008) → Foundational (T009-T017)
 3. **Parallel teams**: After Foundational, split work across parallelizable stories
 4. **Test as you go**: Each story has independent test criteria - verify before moving on
 5. **Polish last**: Cross-cutting concerns in final phase after all features work
-
-
----
-
-## Phase 18: User Story 3 - Read Patient Data from eGK Card (Priority: Last)
-
-**Goal**: Integrate eGK card reading via smartcard-playground library to populate patient demographics
-
-**Independent Test**: Click "Read from eGK Card" button on home screen with eGK card in reader, verify patient data (KVNR, name, DOB) populates and patient view loads within 5 seconds.
-
-### Implementation for User Story 3
-
-- [ ] T058 [P] [US3] Create PatientDemographics model in src/main/java/de/servicehealth/epa/cardreading/model/PatientDemographics.java
-- [ ] T059 [P] [US3] Create CardReaderService in src/main/java/de/servicehealth/epa/cardreading/CardReaderService.java
-- [ ] T060 [US3] Integrate smartcard-playground EFPDReader in CardReaderService.java
-- [ ] T061 [US3] Create CardReaderResource JAX-RS endpoint in src/main/java/de/servicehealth/epa/cardreading/CardReaderResource.java
-- [ ] T062 [US3] Implement POST /api/cardreader/read-patient endpoint in CardReaderResource.java
-- [ ] T063 [P] [US3] Add FR-021: PC/SC reader detection and HCA application selection
-- [ ] T064 [P] [US3] Add FR-022: Read EF.PD file from eGK
-- [ ] T065 [P] [US3] Add FR-023: Decompress BER-TLV/GZIP data
-- [ ] T066 [P] [US3] Add FR-024: Parse XML and extract KVNR, name, DOB
-- [ ] T067 [P] [US3] Add FR-025: Fallback to manual KVNR entry on card read failure
-- [ ] T068 [P] [US3] Add edge case handling: CARD_READER_DISCONNECTED error
-- [ ] T069 [P] [US3] Add edge case handling: CARD_REMOVED error during read
-- [ ] T070 [P] [US3] Add edge case handling: CORRUPTED_DATA error
-- [ ] T071 [US3] Wire "Read from eGK Card" button in PatientSelection.controller.js to call API endpoint
-- [ ] T072 [P] [US3] Add loading indicator during card read operation
-- [ ] T073 [P] [US3] Add success criterion SC-001: Complete read within 5 seconds
-
-**Checkpoint**: eGK card reading functional. Patient data from card populates UI, errors handled gracefully.

@@ -23,12 +23,23 @@ public class MedicationPlanEntry extends MedicationEntry {
 
     private java.time.Instant authoredDate;
 
+    // IDs of eML entries linked to this therapy
+    private java.util.List<String> linkedEmlIds = new java.util.ArrayList<>();
+
     public String getStatus() {
         return status;
     }
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public java.util.List<String> getLinkedEmlIds() {
+        return linkedEmlIds;
+    }
+
+    public void setLinkedEmlIds(java.util.List<String> linkedEmlIds) {
+        this.linkedEmlIds = linkedEmlIds;
     }
 
     public String getNote() {
