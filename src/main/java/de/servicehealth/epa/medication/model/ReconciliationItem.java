@@ -1,8 +1,12 @@
 package de.servicehealth.epa.medication.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Represents a single item in the reconciliation view, comparing an eML entry
- * (history) with regular eMP entries (plan).
+ * (history) with eMP entries (plan).
+ * Enhanced with match type and confidence for split-view UI.
  */
 public class ReconciliationItem {
 
@@ -13,15 +17,23 @@ public class ReconciliationItem {
     private MedicationListEntry emlEntry; // The historical entry (source)
     private MedicationPlanEntry empEntry; // The matching plan entry (target), if any
 
-    // Status flags
+    // Enhanced matching fields
+    private MatchType matchType; // EXACT_MATCH, PROBABLE_MATCH, or ORPHAN
+    private int matchConfidence; // 0-100, confidence score
+    private String matchReason; // Human-readable explanation
+    private List<String> missingFields; // Fields needed when transferring to eMP
+
+    // Legacy fields (kept for backward compatibility)
     private boolean inPlan; // True if a matching entry exists in eMP
     private boolean discrepancy; // True if there are differences (e.g. dosage)
     private String discrepancyDetails; // Description of differences
 
     public ReconciliationItem() {
+        this.missingFields = new ArrayList<>();
     }
 
     public ReconciliationItem(MedicationListEntry emlEntry, MedicationPlanEntry empEntry) {
+        this();
         this.emlEntry = emlEntry;
         this.empEntry = empEntry;
 
@@ -119,5 +131,37 @@ public class ReconciliationItem {
 
     public void setDiscrepancyDetails(String discrepancyDetails) {
         this.discrepancyDetails = discrepancyDetails;
+    }
+
+    public MatchType getMatchType() {
+        return matchType;
+    }
+
+    public void setMatchType(MatchType matchType) {
+        this.matchType = matchType;
+    }
+
+    public int getMatchConfidence() {
+        return matchConfidence;
+    }
+
+    public void setMatchConfidence(int matchConfidence) {
+        this.matchConfidence = matchConfidence;
+    }
+
+    public String getMatchReason() {
+        return matchReason;
+    }
+
+    public void setMatchReason(String matchReason) {
+        this.matchReason = matchReason;
+    }
+
+    public List<String> getMissingFields() {
+        return missingFields;
+    }
+
+    public void setMissingFields(List<String> missingFields) {
+        this.missingFields = missingFields;
     }
 }

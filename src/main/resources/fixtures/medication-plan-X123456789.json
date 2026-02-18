@@ -6,8 +6,8 @@
         {
             "id": "emp-x-001",
             "status": "active",
-            "pzn": "00885967",
-            "medicationName": "Ramipril 5mg Tabletten",
+            "pzn": "01476329",
+            "medicationName": "Ramipril-1A Pharma 5mg",
             "activeIngredient": "Ramipril",
             "strength": "5mg",
             "dosageStructured": "1-0-1-0",
@@ -33,6 +33,20 @@
         },
         {
             "id": "emp-x-003",
+            "status": "active",
+            "pzn": "00764973",
+            "medicationName": "Amoxicillin-Ratiopharm 500mg",
+            "activeIngredient": "Amoxicillin",
+            "strength": "500mg",
+            "dosageStructured": "1-0-1-0",
+            "intakeInstructions": "3x täglich 1 Kapsel",
+            "indication": "Atemwegsinfekt",
+            "atcCode": "J01CA04",
+            "authoredDate": "2026-02-08T09:00:00Z",
+            "entrySource": "prescription"
+        },
+        {
+            "id": "emp-x-004",
             "status": "paused",
             "pzn": "03707132",
             "medicationName": "Ibuprofen 400mg Filmtabletten",
@@ -48,7 +62,7 @@
             "note": "Patient verträgt es aktuell nicht gut"
         },
         {
-            "id": "emp-x-004",
+            "id": "emp-x-005",
             "status": "planned",
             "pzn": "07240651",
             "medicationName": "Aspirin 100mg Tabletten",

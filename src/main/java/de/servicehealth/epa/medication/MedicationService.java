@@ -7,12 +7,14 @@ import de.servicehealth.epa.medication.model.MedicationList;
 import de.servicehealth.epa.medication.model.MedicationListEntry;
 import de.servicehealth.epa.medication.model.MedicationPlan;
 import de.servicehealth.epa.medication.model.MedicationPlanEntry;
-import de.servicehealth.epa.medication.model.ReconciliationItem;
+import de.servicehealth.epa.medication.model.PrescriptionGroup;
+import de.servicehealth.epa.medication.model.ReconciliationStatus;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,13 +49,8 @@ public class MedicationService {
      */
     public Optional<MedicationList> loadMedicationList(String kvnr) {
         MedicationList list = medicationCache.get(kvnr);
-        if (list != null) {
-            // Populate linkedToPlanId for each entry based on current linkMap
-            for (MedicationListEntry entry : list.getEntries()) {
-                String linkedEmpId = linkMap.get(entry.getId());
-                entry.setLinkedToPlanId(linkedEmpId);
-            }
-        }
+        // Note: With the new structure, we don't need to manually link flat entries
+        // here. The linking logic is now in getReconciliationTree
         return Optional.ofNullable(list);
     }
 
@@ -61,9 +58,7 @@ public class MedicationService {
      * Create a link between an eML entry and an eMP entry.
      */
     public void createLink(String kvnr, String emlId, String empId) {
-        // Validate that both entries exist for this patient?
-        // For prototype, we just store the link.
-        linkMap.put(emlId, empId);
+        linkMap.put(emlId, empId); // For manual links (UNLINKED_UPDATE -> LINKED)
         System.out.println("Linked eML entry " + emlId + " to eMP entry " + empId);
     }
 
@@ -127,8 +122,9 @@ public class MedicationService {
             } else {
                 System.err.println("Medication list fixture not found: " + filename);
             }
-        } catch (IOException e) {
-            System.err.println("Failed to load medication list fixture: " + filename);
+        } catch (Exception e) {
+            System.err.println("CRITICAL ERROR: Failed to load medication list fixture: " + filename);
+            System.err.println("Exception message: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -309,17 +305,17 @@ public class MedicationService {
     }
 
     /**
-     * Get reconciliation items for a patient.
-     * Compares eML (history) with eMP (current plan) to identify discrepancies.
+     * Get reconciliation tree for a patient (dgMP compliant).
+     * Compares eML (prescriptions/dispensations) with eMP (current plan).
      */
-    public List<ReconciliationItem> getReconciliation(String kvnr) {
+    public List<PrescriptionGroup> getReconciliationTree(String kvnr) {
         MedicationList eml = medicationCache.get(kvnr);
         MedicationPlan emp = medicationPlanCache.get(kvnr);
 
-        List<ReconciliationItem> items = new ArrayList<>();
+        List<PrescriptionGroup> groups = new ArrayList<>();
 
         if (eml == null || eml.getEntries() == null) {
-            return items;
+            return groups;
         }
 
         // Map eMP entries for faster lookup
@@ -337,32 +333,93 @@ public class MedicationService {
             }
         }
 
-        // Iterate through eML entries and find matches in eMP
-        for (MedicationListEntry emlEntry : eml.getEntries()) {
-            MedicationPlanEntry match = null;
+        // Iterate through Prescriptions (Root Level)
+        for (MedicationListEntry prescription : eml.getEntries()) {
+            // Only create groups for prescriptions
+            if (prescription.isPrescription()) {
+                PrescriptionGroup group = new PrescriptionGroup(prescription);
 
-            // 1. Try manual link first
-            String linkedEmpId = linkMap.get(emlEntry.getId());
-            if (linkedEmpId != null && emp != null) {
-                match = emp.getEntries().stream()
-                        .filter(e -> e.getId().equals(linkedEmpId))
-                        .findFirst()
-                        .orElse(null);
+                // Add dispensations
+                if (prescription.getDispensations() != null) {
+                    group.setDispensations(prescription.getDispensations());
+                }
+
+                // Determine Status
+                ReconciliationStatus status = ReconciliationStatus.ORPHAN_NEW;
+                String matchReason = "No matching medication in plan";
+                String empRef = null;
+
+                // 1. Check manual link first (override)
+                String manuallyLinkedEmpId = linkMap.get(prescription.getId());
+                if (manuallyLinkedEmpId != null && emp != null) {
+                    // Verify entry still exists
+                    boolean exists = emp.getEntries().stream().anyMatch(e -> e.getId().equals(manuallyLinkedEmpId));
+                    if (exists) {
+                        status = ReconciliationStatus.LINKED;
+                        empRef = manuallyLinkedEmpId;
+                        matchReason = "Manually linked to plan entry";
+                    }
+                }
+
+                // 2. Check basedOn / technical link (if we had it in the backend for real)
+                // For prototype, we treat PZN match as implicit technical link (Fall C) if not
+                // manually linked
+                if (status == ReconciliationStatus.ORPHAN_NEW) {
+                    if (prescription.getPzn() != null && empPznMap.containsKey(prescription.getPzn())) {
+                        status = ReconciliationStatus.LINKED;
+                        empRef = empPznMap.get(prescription.getPzn()).getId();
+                        matchReason = "Same product (PZN: " + prescription.getPzn() + ")";
+                    }
+                }
+
+                // 3. Check for UNLINKED_UPDATE (Fall B) - Same Active Ingredient
+                if (status == ReconciliationStatus.ORPHAN_NEW) {
+                    if (prescription.getAtcCode() != null && prescription.getAtcCode().length() >= 5) {
+                        String atcGroup = prescription.getAtcCode().substring(0, 5);
+                        if (empAtcMap.containsKey(atcGroup)) {
+                            status = ReconciliationStatus.UNLINKED_UPDATE;
+                            matchReason = "Active ingredient found in plan (" + atcGroup + ")";
+                            // We don't set empRef here because user needs to choose which one to link to
+                        }
+                    }
+                }
+
+                group.setStatus(status);
+                group.setEmpReference(empRef);
+                group.setMatchReason(matchReason);
+
+                groups.add(group);
             }
-
-            // 2. Try PZN match if no manual link
-            if (match == null && emlEntry.getPzn() != null) {
-                match = empPznMap.get(emlEntry.getPzn());
-            }
-
-            // 3. Try ATC match if still no match
-            if (match == null && emlEntry.getAtcCode() != null && emlEntry.getAtcCode().length() >= 5) {
-                match = empAtcMap.get(emlEntry.getAtcCode().substring(0, 5));
-            }
-
-            items.add(new ReconciliationItem(emlEntry, match));
         }
+        // Sort: ORPHAN > UNLINKED > LINKED
+        groups.sort((g1, g2) -> {
+            int s1 = getStatusPriority(g1.getStatus());
+            int s2 = getStatusPriority(g2.getStatus());
+            if (s1 != s2)
+                return Integer.compare(s1, s2);
+            // Secondary sort by date
+            if (g1.getPrescription().getAuthoredDate() == null)
+                return 1;
+            if (g2.getPrescription().getAuthoredDate() == null)
+                return -1;
+            return g2.getPrescription().getAuthoredDate().compareTo(g1.getPrescription().getAuthoredDate());
+        });
 
-        return items;
+        return groups;
+    }
+
+    private int getStatusPriority(ReconciliationStatus status) {
+        switch (status) {
+            case ORPHAN_NEW:
+                return 1;
+            case UNLINKED_UPDATE:
+                return 2;
+            case LINKED:
+                return 3;
+            case CANCELLED:
+                return 4;
+            default:
+                return 5;
+        }
     }
 }

@@ -1,0 +1,160 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:table="sap.ui.table">
+    <VBox class="sapUiSmallMargin">
+        <OverflowToolbar>
+            <Title text="Reconciliation (eML vs eMP)" level="H3"/>
+            <ToolbarSpacer/>
+            <!-- Added ComboBox for Time Range -->
+            <ComboBox selectionChange=".onTimeFilterChange" selectedKey="3_MONTHS" width="150px">
+                <items>
+                    <core:Item key="3_MONTHS" text="Last 3 Months" />
+                    <core:Item key="6_MONTHS" text="Last 6 Months" />
+                    <core:Item key="1_YEAR" text="Last Year" />
+                    <core:Item key="CUSTOM" text="Custom Range" />
+                </items>
+            </ComboBox>
+            <!-- Added Show Linked CheckBox -->
+            <CheckBox text="Show Linked" select=".onShowLinkedToggle" selected="false" />
+            <Button text="Refresh" icon="sap-icon://refresh" press="._loadReconciliation"/>
+        </OverflowToolbar>
+        
+        <!-- Split View: eML left | eMP right -->
+        <HBox class="reconciliationSplitView">
+            <!-- Left Panel: eML (History/Source) -->
+            <VBox width="48%" class="reconciliationPanel">
+                <Toolbar>
+                    <Title text="eML (History)" level="H4"/>
+                </Toolbar>
+                
+                <table:TreeTable
+                    id="reconciliationTree"
+                    rows="{path: 'app>/reconciliationItems', parameters: {arrayNames: ['dispensations']}}"
+                    selectionMode="None"
+                    enableColumnReordering="false"
+                    visibleRowCount="10">
+                    
+                    <table:rowSettingsTemplate>
+                        <table:RowSettings highlight="{path: 'app>status', formatter: '.formatRowHighlight'}" />
+                    </table:rowSettingsTemplate>
+
+                    <table:columns>
+                        <!-- Status & Medication -->
+                        <table:Column label="Medication" width="50%">
+                            <table:template>
+                                <VBox>
+                                    <HBox alignItems="Center">
+                                        <core:Icon 
+                                            src="{= ${app>entryType} === 'prescription' ? 'sap-icon://document' : 'sap-icon://product' }"
+                                            class="sapUiTinyMarginEnd"
+                                            color="{= ${app>entryType} === 'prescription' ? '#0070F2' : '#107E3E' }"/>
+                                        <Label text="{app>medicationName}" design="Bold"/>
+                                        
+                                        <!-- Substitution Icon -->
+                                        <core:Icon src="sap-icon://compare-2" color="#E69A17" visible="{= ${app>substituted} === true }" class="sapUiTinyMarginBegin" tooltip="Substituted"/>
+                                    </HBox>
+                                    
+                                    <HBox class="sapUiTinyMarginTop">
+                                        <Label text="PZN:" class="sapUiTinyMarginEnd sapUiTinyText"/>
+                                        <Text text="{app>pzn}" class="sapUiTinyText sapUiTinyMarginEnd"/>
+                                        <Label text="ATC:" class="sapUiTinyMarginEnd sapUiTinyText"/>
+                                        <Text text="{app>atcCode}" class="sapUiTinyText"/>
+                                    </HBox>
+                                    
+                                    <!-- Match Info (Only for Root/Prescription) -->
+                                    <VBox visible="{= ${app>entryType} === 'prescription' }" class="sapUiTinyMarginTop">
+                                        <ObjectStatus
+                                            text="{= ${app>status} === 'LINKED' ? 'Linked' : (${app>status} === 'UNLINKED_UPDATE' ? 'Update available' : 'Not in Plan') }"
+                                            state="{= ${app>status} === 'LINKED' ? 'Success' : (${app>status} === 'UNLINKED_UPDATE' ? 'Warning' : 'Error') }"
+                                            icon="{= ${app>status} === 'LINKED' ? 'sap-icon://chain-link' : (${app>status} === 'UNLINKED_UPDATE' ? 'sap-icon://alert' : 'sap-icon://warning') }"/>
+                                        <Text text="{app>matchReason}" class="sapUiTinyText"/>
+                                    </VBox>
+                                </VBox>
+                            </table:template>
+                        </table:Column>
+
+                        <!-- Details -->
+                        <table:Column label="Details" width="25%">
+                            <table:template>
+                                <VBox>
+                                    <Text text="{path: 'app>authoredDate', formatter: '.formatter.formatDate'}"/>
+                                    <Text text="{= ${app>prescriberName} || ${app>pharmacyName} }" class="sapUiTinyText"/>
+                                    <Text text="{app>strength}" class="sapUiTinyText"/>
+                                    <Text text="{app>dosageForm}" class="sapUiTinyText"/>
+                                </VBox>
+                            </table:template>
+                        </table:Column>
+
+                        <!-- Actions -->
+                        <table:Column label="Actions" width="25%" hAlign="End">
+                            <table:template>
+                                <HBox justifyContent="End" visible="{= ${app>entryType} === 'prescription' }">
+                                    <!-- Add to Plan (ORPHAN_NEW) -->
+                                    <Button
+                                        text="Add"
+                                        icon="sap-icon://add"
+                                        type="Emphasized"
+                                        visible="{= ${app>status} === 'ORPHAN_NEW' }"
+                                        press=".onAddToPlanFromTree"
+                                        class="sapUiTinyMarginEnd"/>
+                                    
+                                    <!-- Link (UNLINKED_UPDATE) -->
+                                    <Button
+                                        text="Link"
+                                        icon="sap-icon://chain-link"
+                                        type="Emphasized"
+                                        visible="{= ${app>status} === 'UNLINKED_UPDATE' }"
+                                        press=".onLinkFromTree"
+                                        class="sapUiTinyMarginEnd"/>
+                                        
+                                     <!-- Force Link for Orphan (Manual Link) - New Button -->
+                                    <Button
+                                        icon="sap-icon://chain-link"
+                                        type="Transparent"
+                                        tooltip="Manual Link"
+                                        visible="{= ${app>status} === 'ORPHAN_NEW' }"
+                                        press=".onLinkFromTree"
+                                        class="sapUiTinyMarginEnd"/>
+                                    
+                                    <!-- Unlink (LINKED) -->
+                                    <Button
+                                        icon="sap-icon://broken-link"
+                                        type="Transparent"
+                                        tooltip="Unlink"
+                                        visible="{= ${app>status} === 'LINKED' }"
+                                        press=".onUnlinkFromTree"/>
+
+                                    <!-- Mark as Error -->
+                                    <Button
+                                        icon="sap-icon://hide"
+                                        type="Transparent"
+                                        tooltip="Mark as Error (Hide)"
+                                        press=".onMarkAsError"/>
+                                </HBox>
+                            </table:template>
+                        </table:Column>
+                    </table:columns>
+                </table:TreeTable>
+            </VBox>
+            
+            <!-- Divider -->
+            <core:HTML content="&lt;div style='width:4%; display:flex; align-items:center; justify-content:center; background:#f7f7f7;'&gt;&lt;span style='font-size:2em;'&gt;⟷&lt;/span&gt;&lt;/div&gt;"/>
+            
+            <!-- Right Panel: eMP (Plan/Target) -->
+            <VBox width="48%" class="reconciliationPanel">
+                <Toolbar>
+                    <Title text="eMP (Current Plan)" level="H4"/>
+                </Toolbar>
+                
+                <List
+                    items="{path: 'app>/medicationPlan/entries'}"
+                    noDataText="No current medication plan">
+                    <StandardListItem
+                        title="{app>medicationName}"
+                        description="Status: {app>status} | Dosage: {app>dosageText}"
+                        icon="sap-icon://pill"
+                        info="{= ${app>linkedEmlIds}.length > 0 ? 'History (' + ${app>linkedEmlIds}.length + ')' : '' }"
+                        infoState="{= ${app>linkedEmlIds}.length > 0 ? 'Success' : 'None' }"/>
+                </List>
+            </VBox>
+        </HBox>
+    </VBox>
+</core:FragmentDefinition>

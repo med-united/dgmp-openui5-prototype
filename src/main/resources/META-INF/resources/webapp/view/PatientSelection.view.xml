@@ -1,0 +1,80 @@
+<mvc:View controllerName="epa.controller.PatientSelection" 
+          xmlns:mvc="sap.ui.core.mvc" 
+          xmlns="sap.m" 
+          xmlns:l="sap.ui.layout"
+          xmlns:core="sap.ui.core">
+    <App>
+        <pages>
+            <Page title="ePA Medication Service">
+                <content>
+                    <l:VerticalLayout class="sapUiContentPadding">
+                        
+                        <!-- Search Section -->
+                        <VBox class="sapUiMediumMarginBottom">
+                            <Title text="Patient Search" level="H2" />
+                            
+                            <HBox class="sapUiSmallMarginTop" alignItems="Center">
+                                <SearchField
+                                    id="kvnrSearchField"
+                                    placeholder="KVNR eingeben (z.B. X123456789)"
+                                    width="400px"
+                                    search=".onSearch"
+                                    class="sapUiSmallMarginEnd" />
+                            </HBox>
+                        </VBox>
+                        
+                        <!-- Recent Patients Section -->
+                        <VBox>
+                            <Title text="Recent Patients" level="H2" />
+                            
+                            <List
+                                id="recentPatientsList"
+                                items="{app>/recentPatients}"
+                                mode="SingleSelectMaster"
+                                selectionChange=".onRecentPatientSelect"
+                                noDataText="No recent patients searched yet.">
+                                
+                                <StandardListItem
+                                    title="{app>firstName} {app>lastName}"
+                                    description="KVNR: {app>kvnr}"
+                                    info="{app>dateOfBirth}"
+                                    type="Navigation" />
+                            </List>
+                        </VBox>
+                        
+                        <!-- Patient Data Tabs (visible when patient selected) -->
+                        <IconTabBar
+                            id="patientDataTabs"
+                            visible="{app>/patientSelected}"
+                            class="sapUiMediumMarginTop"
+                            expandable="false">
+                            <items>
+                                <!-- Tab 1: Electronic Medication Plan (eMP) -->
+                                <IconTabFilter
+                                    text="eMP (Current Plan)"
+                                    icon="sap-icon://clinical-order">
+                                    <core:Fragment fragmentName="epa.view.MedicationPlan" type="XML" />
+                                </IconTabFilter>
+                                
+                                <!-- Tab 2: Electronic Medication List (eML) -->
+                                <IconTabFilter
+                                    text="eML (History)"
+                                    icon="sap-icon://history">
+                                    <core:Fragment fragmentName="epa.view.MedicationList" type="XML" />
+                                </IconTabFilter>
+
+                                <!-- Tab 3: Reconciliation -->
+                                <IconTabFilter
+                                    text="Reconciliation"
+                                    icon="sap-icon://compare">
+                                    <core:Fragment fragmentName="epa.view.Reconciliation" type="XML" />
+                                </IconTabFilter>
+                            </items>
+                        </IconTabBar>
+                        
+                    </l:VerticalLayout>
+                </content>
+            </Page>
+        </pages>
+    </App>
+</mvc:View>

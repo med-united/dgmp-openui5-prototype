@@ -4,7 +4,8 @@ import de.servicehealth.epa.medication.model.DuplicateMatch;
 
 import de.servicehealth.epa.medication.model.MedicationPlan;
 import de.servicehealth.epa.medication.model.MedicationPlanEntry;
-import de.servicehealth.epa.medication.model.ReconciliationItem;
+
+import de.servicehealth.epa.medication.model.PrescriptionGroup;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -296,10 +297,10 @@ public class MedicationResource {
     }
 
     /**
-     * Get reconciliation items for a patient.
+     * Get reconciliation tree for a patient (dgMP compliant).
      * 
      * @param kvnr Patient KVNR
-     * @return List of ReconciliationItem
+     * @return List of PrescriptionGroup
      */
     @GET
     @Path("/reconciliation/{kvnr}")
@@ -311,8 +312,8 @@ public class MedicationResource {
         }
 
         try {
-            List<ReconciliationItem> items = medicationService.getReconciliation(kvnr);
-            return Response.ok(items).build();
+            List<PrescriptionGroup> groups = medicationService.getReconciliationTree(kvnr);
+            return Response.ok(groups).build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("{\"error\": \"Failed to load reconciliation items: " + e.getMessage() + "\"}")

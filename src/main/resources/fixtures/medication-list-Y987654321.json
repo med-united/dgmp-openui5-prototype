@@ -2,56 +2,285 @@
     "kvnr": "Y987654321",
     "entries": [
         {
-            "id": "eml-y-001",
+            "id": "presc-y-201",
             "entryType": "prescription",
-            "pzn": "00764973",
-            "medicationName": "Amoxicillin 500mg Kapseln",
-            "activeIngredient": "Amoxicillin",
-            "strength": "500mg",
-            "dosageStructured": "1-0-1-0",
-            "dosageText": "3x täglich 1 Kapsel für 7 Tage",
-            "intakeInstructions": "mit reichlich Wasser",
-            "indication": "Atemwegsinfekt",
-            "atcCode": "J01CA04",
-            "authoredDate": "2026-02-08T10:00:00",
-            "prescriber": "Dr. Weber, HNO-Arzt",
-            "pharmacy": null,
-            "linkedToPlanId": null
+            "medicationName": "Ramipril 5 mg Tabletten",
+            "pzn": "02217628",
+            "activeIngredient": "Ramipril",
+            "strength": "5 mg",
+            "atcCode": "C09AA05",
+            "dosageForm": "Tabletten",
+            "prescriberName": "Dr. Müller, Hausarzt",
+            "authoredDate": "2024-03-10T09:15:00",
+            "dispensations": [
+                {
+                    "id": "disp-y-201-01",
+                    "entryType": "dispensement",
+                    "medicationName": "Ramipril 5 mg Tabletten",
+                    "pzn": "02217628",
+                    "activeIngredient": "Ramipril",
+                    "strength": "5 mg",
+                    "atcCode": "C09AA05",
+                    "dosageForm": "Tabletten",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2024-03-10T11:30:00",
+                    "basedOnReference": "presc-y-201",
+                    "substituted": false
+                },
+                {
+                    "id": "disp-y-201-02",
+                    "entryType": "dispensement",
+                    "medicationName": "Ramipril 5 mg Tabletten",
+                    "pzn": "02217628",
+                    "activeIngredient": "Ramipril",
+                    "strength": "5 mg",
+                    "atcCode": "C09AA05",
+                    "dosageForm": "Tabletten",
+                    "pharmacyName": "Linden-Apotheke",
+                    "authoredDate": "2024-09-15T10:05:00",
+                    "basedOnReference": "presc-y-201",
+                    "substituted": false
+                },
+                {
+                    "id": "disp-y-201-03",
+                    "entryType": "dispensement",
+                    "medicationName": "Ramipril 5 mg Tabletten",
+                    "pzn": "02217628",
+                    "activeIngredient": "Ramipril",
+                    "strength": "5 mg",
+                    "atcCode": "C09AA05",
+                    "dosageForm": "Tabletten",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2025-03-12T16:20:00",
+                    "basedOnReference": "presc-y-201",
+                    "substituted": false
+                }
+            ]
         },
         {
-            "id": "eml-y-002",
-            "entryType": "dispensement",
-            "pzn": "00764973",
-            "medicationName": "Amoxicillin 500mg Kapseln",
-            "activeIngredient": "Amoxicillin",
-            "strength": "500mg",
-            "dosageStructured": "1-0-1-0",
-            "dosageText": "3x täglich 1 Kapsel für 7 Tage",
-            "intakeInstructions": "mit reichlich Wasser",
-            "indication": "Atemwegsinfekt",
-            "atcCode": "J01CA04",
-            "authoredDate": "2026-02-08T15:30:00",
-            "pharmacy": "Apotheke am Markt",
-            "prescriber": null,
-            "linkedToPlanId": null
+            "id": "presc-y-202",
+            "entryType": "prescription",
+            "medicationName": "Atorvastatin 20 mg Filmtabletten",
+            "pzn": "07599988",
+            "activeIngredient": "Atorvastatin",
+            "strength": "20 mg",
+            "atcCode": "C10AA05",
+            "dosageForm": "Filmtabletten",
+            "prescriberName": "Dr. Müller, Hausarzt",
+            "authoredDate": "2024-03-10T09:20:00",
+            "dispensations": [
+                {
+                    "id": "disp-y-202-01",
+                    "entryType": "dispensement",
+                    "medicationName": "Atorvastatin 20 mg Filmtabletten",
+                    "pzn": "07599988",
+                    "activeIngredient": "Atorvastatin",
+                    "strength": "20 mg",
+                    "atcCode": "C10AA05",
+                    "dosageForm": "Filmtabletten",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2024-03-10T11:35:00",
+                    "basedOnReference": "presc-y-202",
+                    "substituted": false
+                },
+                {
+                    "id": "disp-y-202-02",
+                    "entryType": "dispensement",
+                    "medicationName": "Atorvastatin 20 mg Filmtabletten",
+                    "pzn": "07599988",
+                    "activeIngredient": "Atorvastatin",
+                    "strength": "20 mg",
+                    "atcCode": "C10AA05",
+                    "dosageForm": "Filmtabletten",
+                    "pharmacyName": "Linden-Apotheke",
+                    "authoredDate": "2024-11-05T14:10:00",
+                    "basedOnReference": "presc-y-202",
+                    "substituted": false
+                }
+            ]
         },
         {
-            "id": "eml-y-003",
-            "entryType": "dispensement",
+            "id": "presc-y-203",
+            "entryType": "prescription",
+            "medicationName": "Metformin 1000 mg Filmtabletten",
+            "pzn": "09749588",
+            "activeIngredient": "Metformin",
+            "strength": "1000 mg",
+            "atcCode": "A10BA02",
+            "dosageForm": "Filmtabletten",
+            "prescriberName": "Dr. Müller, Hausarzt",
+            "authoredDate": "2024-07-02T08:45:00",
+            "dispensations": [
+                {
+                    "id": "disp-y-203-01",
+                    "entryType": "dispensement",
+                    "medicationName": "Metformin 1000 mg Filmtabletten",
+                    "pzn": "09749588",
+                    "activeIngredient": "Metformin",
+                    "strength": "1000 mg",
+                    "atcCode": "A10BA02",
+                    "dosageForm": "Filmtabletten",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2024-07-02T10:00:00",
+                    "basedOnReference": "presc-y-203",
+                    "substituted": false
+                },
+                {
+                    "id": "disp-y-203-02",
+                    "entryType": "dispensement",
+                    "medicationName": "Metformin 1000 mg Filmtabletten",
+                    "pzn": "09749588",
+                    "activeIngredient": "Metformin",
+                    "strength": "1000 mg",
+                    "atcCode": "A10BA02",
+                    "dosageForm": "Filmtabletten",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2025-01-10T09:40:00",
+                    "basedOnReference": "presc-y-203",
+                    "substituted": false
+                }
+            ]
+        },
+        {
+            "id": "presc-y-204",
+            "entryType": "prescription",
+            "medicationName": "Pantoprazol 20 mg magensaftresistente Tabletten",
+            "pzn": "08985842",
+            "activeIngredient": "Pantoprazol",
+            "strength": "20 mg",
+            "atcCode": "A02BC02",
+            "dosageForm": "magensaftresistente Tabletten",
+            "prescriberName": "Dr. Müller, Hausarzt",
+            "authoredDate": "2025-02-15T10:10:00",
+            "dispensations": [
+                {
+                    "id": "disp-y-204-01",
+                    "entryType": "dispensement",
+                    "medicationName": "Pantoprazol 20 mg magensaftresistente Tabletten",
+                    "pzn": "08985842",
+                    "activeIngredient": "Pantoprazol",
+                    "strength": "20 mg",
+                    "atcCode": "A02BC02",
+                    "dosageForm": "magensaftresistente Tabletten",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2025-02-15T12:00:00",
+                    "basedOnReference": "presc-y-204",
+                    "substituted": false
+                }
+            ]
+        },
+        {
+            "id": "presc-y-205",
+            "entryType": "prescription",
+            "medicationName": "Bisoprolol 5 mg Tabletten",
+            "pzn": "04470288",
+            "activeIngredient": "Bisoprolol",
+            "strength": "5 mg",
+            "atcCode": "C07AB07",
+            "dosageForm": "Tabletten",
+            "prescriberName": "Dr. Müller, Hausarzt",
+            "authoredDate": "2025-08-20T09:00:00",
+            "dispensations": [
+                {
+                    "id": "disp-y-205-01",
+                    "entryType": "dispensement",
+                    "medicationName": "Bisoprolol 5 mg Tabletten",
+                    "pzn": "04470288",
+                    "activeIngredient": "Bisoprolol",
+                    "strength": "5 mg",
+                    "atcCode": "C07AB07",
+                    "dosageForm": "Tabletten",
+                    "pharmacyName": "Linden-Apotheke",
+                    "authoredDate": "2025-08-20T11:15:00",
+                    "basedOnReference": "presc-y-205",
+                    "substituted": false
+                }
+            ]
+        },
+        {
+            "id": "presc-y-206",
+            "entryType": "prescription",
+            "medicationName": "Ibuprofen 600 mg Filmtabletten",
+            "pzn": "04560124",
+            "activeIngredient": "Ibuprofen",
+            "strength": "600 mg",
+            "atcCode": "M01AE01",
+            "dosageForm": "Filmtabletten",
+            "prescriberName": "Dr. Weber, Orthopäde",
+            "authoredDate": "2025-11-05T13:30:00",
+            "dispensations": [
+                {
+                    "id": "disp-y-206-01",
+                    "entryType": "dispensement",
+                    "medicationName": "Ibuprofen 600 mg Filmtabletten",
+                    "pzn": "04560124",
+                    "activeIngredient": "Ibuprofen",
+                    "strength": "600 mg",
+                    "atcCode": "M01AE01",
+                    "dosageForm": "Filmtabletten",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2025-11-05T15:00:00",
+                    "basedOnReference": "presc-y-206",
+                    "substituted": false
+                }
+            ]
+        },
+        {
+            "id": "presc-y-207",
+            "entryType": "prescription",
+            "medicationName": "Amoxicillin 500 mg Kapseln",
+            "pzn": "00764973",
+            "activeIngredient": "Amoxicillin",
+            "strength": "500 mg",
+            "atcCode": "J01CA04",
+            "dosageForm": "Kapseln",
+            "prescriberName": "Dr. Weber, HNO-Arzt",
+            "authoredDate": "2026-01-28T10:00:00",
+            "dispensations": [
+                {
+                    "id": "disp-y-207-01",
+                    "entryType": "dispensement",
+                    "medicationName": "Amoxicillin 500 mg Kapseln",
+                    "pzn": "00764973",
+                    "activeIngredient": "Amoxicillin",
+                    "strength": "500 mg",
+                    "atcCode": "J01CA04",
+                    "dosageForm": "Kapseln",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2026-01-28T12:30:00",
+                    "basedOnReference": "presc-y-207",
+                    "substituted": false
+                }
+            ]
+        },
+        {
+            "id": "presc-y-208",
+            "entryType": "prescription",
+            "medicationName": "Paracetamol 500 mg Tabletten",
             "pzn": "01318813",
-            "medicationName": "Paracetamol 500mg Tabletten",
             "activeIngredient": "Paracetamol",
-            "strength": "500mg",
-            "dosageText": "Bei Bedarf bis zu 4x täglich 1-2 Tabletten",
-            "dosageStructured": "1-0-1-0",
-            "intakeInstructions": "mit Wasser",
-            "indication": "Fieber, Schmerzen",
+            "strength": "500 mg",
             "atcCode": "N02BE01",
-            "authoredDate": "2026-01-25T12:00:00",
-            "pharmacy": "Apotheke am Markt",
-            "prescriber": null,
-            "linkedToPlanId": null
+            "dosageForm": "Tabletten",
+            "prescriberName": "Dr. Müller, Hausarzt",
+            "authoredDate": "2026-02-02T09:50:00",
+            "dispensations": [
+                {
+                    "id": "disp-y-208-01",
+                    "entryType": "dispensement",
+                    "medicationName": "Paracetamol 500 mg Tabletten",
+                    "pzn": "01318813",
+                    "activeIngredient": "Paracetamol",
+                    "strength": "500 mg",
+                    "atcCode": "N02BE01",
+                    "dosageForm": "Tabletten",
+                    "pharmacyName": "Apotheke am Markt",
+                    "authoredDate": "2026-02-02T11:10:00",
+                    "basedOnReference": "presc-y-208",
+                    "substituted": false
+                }
+            ]
         }
     ],
-    "lastUpdated": "2026-02-08T15:30:00"
+    "lastUpdated": "2026-02-02T11:10:00"
 }

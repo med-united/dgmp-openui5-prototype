@@ -1,0 +1,94 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:table="sap.ui.table">
+    <VBox class="sapUiSmallMargin">
+        <Title text="Electronic Medication List (eML)" level="H3" class="sapUiMediumMarginBottom"/>
+        
+        <Text 
+            text="Historical prescriptions and dispensements, ordered by date (newest first)" 
+            class="sapUiSmallMarginBottom"/>
+        
+        <table:TreeTable
+            id="medicationListTree"
+            rows="{path: 'app>/medicationList/entries', parameters: {arrayNames: ['dispensations']}}"
+            selectionMode="Single"
+            enableColumnReordering="false"
+            visibleRowCount="10"
+            rowSelectionChange=".onMedicationRowSelect"
+            noData="No medications found in eML">
+            
+            <table:columns>
+                <!-- Medication Name & Type -->
+                <table:Column label="Medication" width="40%">
+                    <table:template>
+                        <HBox alignItems="Center">
+                            <!-- Entry Type Icon -->
+                            <core:Icon 
+                                src="{= ${app>entryType} === 'prescription' ? 'sap-icon://document' : 'sap-icon://product' }"
+                                color="{= ${app>entryType} === 'prescription' ? '#0070F2' : '#107E3E' }"
+                                size="1.2rem"
+                                class="sapUiTinyMarginEnd"/>
+                            <VBox>
+                                <Label text="{app>medicationName}" design="Bold"/>
+                                <!-- Substitution Icon -->
+                                <HBox alignItems="Center" visible="{= ${app>substituted} === true }">
+                                    <core:Icon src="sap-icon://compare-2" color="#E69A17" size="0.8rem" class="sapUiTinyMarginEnd"/>
+                                    <Text text="Substituted" class="sapUiTinyText"/>
+                                </HBox>
+                            </VBox>
+                        </HBox>
+                    </table:template>
+                </table:Column>
+
+                <!-- Active Ingredient & Strength -->
+                <table:Column label="Ingredient / Strength" width="25%">
+                    <table:template>
+                        <VBox>
+                            <Text text="{app>activeIngredient}"/>
+                            <Text text="{app>strength}" class="sapUiTinyText"/>
+                        </VBox>
+                    </table:template>
+                </table:Column>
+
+                <!-- Dosage Form & PZN -->
+                <table:Column label="Form / PZN" width="15%">
+                    <table:template>
+                        <VBox>
+                            <Text text="{app>dosageForm}"/>
+                            <Text text="{app>pzn}" class="sapUiTinyText"/>
+                        </VBox>
+                    </table:template>
+                </table:Column>
+
+                <!-- Date & Source -->
+                <table:Column label="Date / Source" width="20%">
+                    <table:template>
+                        <VBox>
+                            <Text text="{path: 'app>authoredDate', formatter: '.formatter.formatDate'}"/>
+                            <Text text="{= ${app>prescriberName} || ${app>pharmacyName} }" class="sapUiTinyText"/>
+                        </VBox>
+                    </table:template>
+                </table:Column>
+
+                <!-- Actions / Status -->
+                <table:Column label="Status" width="15%" hAlign="End">
+                    <table:template>
+                        <HBox justifyContent="End" alignItems="Center">
+                             <ObjectStatus
+                                text="Linked"
+                                state="Success"
+                                icon="sap-icon://chain-link"
+                                visible="{= !!${app>linkedToPlanId} }"
+                                class="sapUiTinyMarginEnd"/>
+                                
+                                <Button
+                                icon="{= !!${app>linkedToPlanId} ? 'sap-icon://broken-link' : 'sap-icon://chain-link' }"
+                                type="Transparent"
+                                tooltip="{= !!${app>linkedToPlanId} ? 'Unlink from Plan' : 'Link to Plan' }"
+                                press=".onLinkPress"/>
+                        </HBox>
+                    </table:template>
+                </table:Column>
+
+            </table:columns>
+        </table:TreeTable>
+    </VBox>
+</core:FragmentDefinition>

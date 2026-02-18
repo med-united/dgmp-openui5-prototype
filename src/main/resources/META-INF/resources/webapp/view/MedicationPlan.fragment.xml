@@ -1,0 +1,87 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+    <VBox class="sapUiSmallMargin">
+        <!-- eMP Toolbar -->
+        <OverflowToolbar>
+            <Title text="Current Medication Plan" level="H3"/>
+            <ToolbarSpacer/>
+            <Button text="Add Medication" icon="sap-icon://add" type="Emphasized" press=".onAddMedication"/>
+            <Button text="Export PDF" icon="sap-icon://pdf-attachment" press=".onExportPDF"/>
+            <Button text="AMTS Check" icon="sap-icon://stethoscope" press=".onAMTSCheck"/>
+        </OverflowToolbar>
+        
+        <!-- eMP Table -->
+        <Table
+            id="empTable"
+            items="{
+                path: 'app>/medicationPlan/entries',
+                sorter: {
+                    path: 'status',
+                    descending: false,
+                    group: true
+                }
+            }"
+            noDataText="No active medications in plan">
+            
+            <columns>
+                <Column width="4rem"><Text text="Status"/></Column>
+                <Column><Text text="Medication"/></Column>
+                <Column minScreenWidth="Tablet" demandPopin="true"><Text text="Dosage"/></Column>
+                <Column minScreenWidth="Tablet" demandPopin="true"><Text text="Reason/Note"/></Column>
+                <Column width="15%" hAlign="End"><Text text="Actions"/></Column>
+            </columns>
+            
+            <items>
+                <ColumnListItem>
+                    <cells>
+                        <!-- Status Icon -->
+                        <core:Icon
+                            src="{= ${app>status} === 'active' ? 'sap-icon://sys-enter-2' : (${app>status} === 'paused' ? 'sap-icon://pause' : 'sap-icon://future') }"
+                            color="{= ${app>status} === 'active' ? '#107E3E' : (${app>status} === 'paused' ? '#E69A17' : '#0070F2') }"
+                            tooltip="{app>status}"/>
+                            
+                        <!-- Medication Info -->
+                        <VBox>
+                            <HBox alignItems="Center">
+                                <Text text="{app>medicationName}" class="sapUiTinyMarginBottom sapUiTinyMarginEnd sapMTextBold" wrapping="false"/>
+                                <ObjectStatus
+                                    text="History ({app>linkedEmlIds/length})"
+                                    state="Information"
+                                    icon="sap-icon://chain-link"
+                                    visible="{= ${app>linkedEmlIds}.length > 0 }"
+                                    active="true"
+                                    press=".onShowLinkedHistory"
+                                    class="sapUiTinyMarginBottom"/>
+                            </HBox>
+                            <Text text="{app>activeIngredient} • {app>strength}" class="sapUiTinyText"/>
+                        </VBox>
+                        
+                        <!-- Dosage -->
+                        <Text text="{= ${app>dosageStructured} || ${app>dosageText} }"/>
+                        
+                        <!-- Reason/Note -->
+                        <VBox>
+                            <Text text="{app>reasonForPause}" visible="{= ${app>status} === 'paused'}" class="sapUiTinyText"/>
+                            <Text text="{app>note}" visible="{= !!${app>note}}" class="sapUiTinyText"/>
+                        </VBox>
+                        
+                        <!-- Actions -->
+                        <HBox justifyContent="End">
+                            <Button icon="sap-icon://edit" type="Transparent" tooltip="Edit" press=".onEditMedication"/>
+                            <Button 
+                                icon="{= ${app>status} === 'active' ? 'sap-icon://pause' : 'sap-icon://play' }" 
+                                type="Transparent"
+                                tooltip="{= ${app>status} === 'active' ? 'Pause' : 'Reactivate' }"
+                                press=".onPauseMedication"/>
+                            <Button icon="sap-icon://delete" type="Transparent" tooltip="Delete" press=".onDeleteMedication"/>
+                        </HBox>
+                    </cells>
+                </ColumnListItem>
+            </items>
+        </Table>
+        
+        <HBox alignItems="Center" class="sapUiTinyMarginTop">
+            <Label text="Last updated:" class="sapUiTinyMarginEnd"/>
+            <Text text="{path: 'app>/medicationPlan/lastUpdated', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
+        </HBox>
+    </VBox>
+</core:FragmentDefinition>

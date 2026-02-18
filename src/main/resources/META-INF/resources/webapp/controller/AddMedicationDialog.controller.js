@@ -150,6 +150,8 @@ sap.ui.define([
             oCurrentData.medicationName = oData.medicationName || oCurrentData.medicationName;
             oCurrentData.strength = oData.strength || oCurrentData.strength;
             oCurrentData.activeIngredient = oData.activeIngredient || oCurrentData.activeIngredient;
+            oCurrentData.atcCode = oData.atcCode || oCurrentData.atcCode;
+            oCurrentData.dosageStructured = oData.dosageStructured || oCurrentData.dosageStructured;
             oCurrentData.dosageStructured = oData.dosageStructured || oCurrentData.dosageStructured;
             oCurrentData.dosageText = oData.dosageText || oCurrentData.dosageText;
             oCurrentData.indication = oData.indication || oCurrentData.indication;
@@ -221,6 +223,8 @@ sap.ui.define([
                 pzn: sPZN,
                 strength: oData.strength,
                 activeIngredient: oData.activeIngredient,
+                atcCode: oData.atcCode,
+                dosageStructured: sDosageStruct,
                 dosageStructured: sDosageStruct,
                 dosageText: sDosageText,
                 intakeInstructions: oData.intakeInstructions,
@@ -286,8 +290,10 @@ sap.ui.define([
                     oView.byId("addMedicationDialog").close();
                     // Refresh data
                     var oMainController = that.getView().getController();
-                    if (oMainController && oMainController._loadMedicationPlan) {
-                        oMainController._loadMedicationPlan(sKvnr);
+                    if (oMainController) {
+                        if (oMainController._loadMedicationPlan) oMainController._loadMedicationPlan(sKvnr);
+                        if (oMainController._loadMedicationList) oMainController._loadMedicationList(sKvnr);
+                        if (oMainController._loadReconciliation) oMainController._loadReconciliation(sKvnr);
                     }
                 })
                 .catch(function (err) {
