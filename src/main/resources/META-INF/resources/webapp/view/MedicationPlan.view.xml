@@ -1,4 +1,9 @@
-<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+<mvc:View
+    controllerName="epa.controller.MedicationPlan"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    
     <VBox class="sapUiSmallMargin">
         <!-- eMP Toolbar -->
         <OverflowToolbar>
@@ -84,4 +89,4 @@
             <Text text="{path: 'app>/medicationPlan/lastUpdated', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
         </HBox>
     </VBox>
-</core:FragmentDefinition>
+</mvc:View>

@@ -288,13 +288,18 @@ sap.ui.define([
                     }
 
                     oView.byId("addMedicationDialog").close();
-                    // Refresh data
+
+                    // Refresh data via EventBus
+                    sap.ui.getCore().getEventBus().publish("epa", "refreshData");
+
+                    /* Legacy direct call - removed
                     var oMainController = that.getView().getController();
                     if (oMainController) {
                         if (oMainController._loadMedicationPlan) oMainController._loadMedicationPlan(sKvnr);
                         if (oMainController._loadMedicationList) oMainController._loadMedicationList(sKvnr);
                         if (oMainController._loadReconciliation) oMainController._loadReconciliation(sKvnr);
                     }
+                    */
                 })
                 .catch(function (err) {
                     if (!err.message.includes("Duplicate")) {
@@ -316,8 +321,7 @@ sap.ui.define([
                 .then(function (res) { return res.json(); })
                 .then(function () {
                     MessageToast.show("Medication added (duplicate ignored)");
-                    var oMainController = that.getView().getController();
-                    if (oMainController) oMainController._loadMedicationPlan(sKvnr);
+                    sap.ui.getCore().getEventBus().publish("epa", "refreshData");
                 });
         },
 

@@ -53,21 +53,21 @@
                                 <IconTabFilter
                                     text="eMP (Current Plan)"
                                     icon="sap-icon://clinical-order">
-                                    <core:Fragment fragmentName="epa.view.MedicationPlan" type="XML" />
+                                    <mvc:XMLView viewName="epa.view.MedicationPlan" />
                                 </IconTabFilter>
                                 
                                 <!-- Tab 2: Electronic Medication List (eML) -->
                                 <IconTabFilter
                                     text="eML (History)"
                                     icon="sap-icon://history">
-                                    <core:Fragment fragmentName="epa.view.MedicationList" type="XML" />
+                                    <mvc:XMLView viewName="epa.view.MedicationList" />
                                 </IconTabFilter>
 
                                 <!-- Tab 3: Reconciliation -->
                                 <IconTabFilter
                                     text="Reconciliation"
                                     icon="sap-icon://compare">
-                                    <core:Fragment fragmentName="epa.view.Reconciliation" type="XML" />
+                                    <mvc:XMLView viewName="epa.view.Reconciliation" />
                                 </IconTabFilter>
                             </items>
                         </IconTabBar>

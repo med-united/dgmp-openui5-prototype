@@ -28,6 +28,10 @@ public class PrescriptionGroup {
 
     // Getters and Setters
 
+    public String getId() {
+        return prescription != null ? prescription.getId() : null;
+    }
+
     public MedicationListEntry getPrescription() {
         return prescription;
     }

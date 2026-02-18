@@ -37,6 +37,9 @@ public class MedicationService {
     // Key: emlId, Value: empId
     private final ConcurrentHashMap<String, String> linkMap = new ConcurrentHashMap<>();
 
+    // Set of eML IDs that have been explicitly unlinked (even if PZN matches)
+    private final ConcurrentHashMap.KeySetView<String, Boolean> unlinkedSet = ConcurrentHashMap.newKeySet();
+
     public MedicationService() {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
@@ -49,25 +52,117 @@ public class MedicationService {
      */
     public Optional<MedicationList> loadMedicationList(String kvnr) {
         MedicationList list = medicationCache.get(kvnr);
-        // Note: With the new structure, we don't need to manually link flat entries
-        // here. The linking logic is now in getReconciliationTree
+        MedicationPlan plan = medicationPlanCache.get(kvnr);
+
+        if (list != null) {
+            Map<String, String> pznMap = new HashMap<>();
+            if (plan != null && plan.getEntries() != null) {
+                for (MedicationPlanEntry entry : plan.getEntries()) {
+                    if (entry.getPzn() != null) {
+                        pznMap.put(entry.getPzn(), entry.getId());
+                    }
+                }
+            }
+            populateLinkStatus(list.getEntries(), pznMap);
+        }
+
         return Optional.ofNullable(list);
+    }
+
+    private void populateLinkStatus(List<MedicationListEntry> entries, Map<String, String> pznMap) {
+        if (entries == null)
+            return;
+
+        for (MedicationListEntry entry : entries) {
+            // 1. Check manual link (priority)
+            String empId = linkMap.get(entry.getId());
+
+            // 2. Check implicit PZN link
+            if (empId == null && entry.getPzn() != null && !unlinkedSet.contains(entry.getId())) {
+                empId = pznMap.get(entry.getPzn());
+            }
+
+            entry.setLinkedToPlanId(empId);
+
+            // Check children (dispensations)
+            populateLinkStatus(entry.getDispensations(), pznMap);
+        }
     }
 
     /**
      * Create a link between an eML entry and an eMP entry.
+     * Cascades to dispensations if the eML entry is a prescription.
      */
     public void createLink(String kvnr, String emlId, String empId) {
-        linkMap.put(emlId, empId); // For manual links (UNLINKED_UPDATE -> LINKED)
+        // Link the target entry
+        linkMap.put(emlId, empId);
+        unlinkedSet.remove(emlId);
         System.out.println("Linked eML entry " + emlId + " to eMP entry " + empId);
+
+        // Check if it's a prescription with dispensations and link them too
+        Optional<MedicationListEntry> entryOpt = findEntry(emlId);
+        if (entryOpt.isPresent()) {
+            MedicationListEntry entry = entryOpt.get();
+            if (entry.getDispensations() != null) {
+                for (MedicationListEntry disp : entry.getDispensations()) {
+                    linkMap.put(disp.getId(), empId);
+                    unlinkedSet.remove(disp.getId());
+                    System.out.println("  -> Cascaded link to dispensation " + disp.getId());
+                }
+            }
+        }
     }
 
     /**
      * Remove a link for an eML entry.
+     * Cascades to dispensations if the eML entry is a prescription.
      */
     public boolean removeLink(String kvnr, String emlId) {
-        String removed = linkMap.remove(emlId);
-        return removed != null;
+        boolean removed = linkMap.remove(emlId) != null;
+
+        // Add to unlinkedSet to prevent implicit relinking
+        unlinkedSet.add(emlId);
+        System.out.println("Unlinked eML entry " + emlId);
+
+        // Check if it's a prescription with dispensations and unlink them too
+        Optional<MedicationListEntry> entryOpt = findEntry(emlId);
+        if (entryOpt.isPresent()) {
+            MedicationListEntry entry = entryOpt.get();
+            if (entry.getDispensations() != null) {
+                for (MedicationListEntry disp : entry.getDispensations()) {
+                    linkMap.remove(disp.getId());
+                    unlinkedSet.add(disp.getId());
+                    System.out.println("  -> Cascaded unlink to dispensation " + disp.getId());
+                }
+            }
+        }
+
+        return true; // Always return true as we might be unlinking an implicit link
+    }
+
+    /**
+     * Helper to find an entry by ID across all cached medication lists.
+     * Needed because link operations might not provide the correct KVNR.
+     */
+    private Optional<MedicationListEntry> findEntry(String emlId) {
+        for (MedicationList list : medicationCache.values()) {
+            if (list.getEntries() != null) {
+                for (MedicationListEntry entry : list.getEntries()) {
+                    if (entry.getId().equals(emlId)) {
+                        return Optional.of(entry);
+                    }
+                    // Check dispensations
+                    if (entry.getDispensations() != null) {
+                        for (MedicationListEntry disp : entry.getDispensations()) {
+                            if (disp.getId().equals(emlId)) {
+                                return Optional.of(disp);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -77,15 +172,37 @@ public class MedicationService {
     public Optional<MedicationPlan> loadMedicationPlan(String kvnr) {
         MedicationPlan plan = medicationPlanCache.get(kvnr);
         if (plan != null) {
-            // Populate linkedEmlIds (reverse lookup in linkMap)
-            for (MedicationPlanEntry entry : plan.getEntries()) {
-                List<String> linkedEmls = new ArrayList<>();
-                for (Map.Entry<String, String> link : linkMap.entrySet()) {
-                    if (link.getValue().equals(entry.getId())) {
-                        linkedEmls.add(link.getKey());
+            // Populate linkedEmlIds (manual + implicit)
+            if (plan.getEntries() != null) {
+                // Get eML for implicit check
+                MedicationList eml = medicationCache.get(kvnr);
+
+                for (MedicationPlanEntry entry : plan.getEntries()) {
+                    List<String> linkedEmls = new ArrayList<>();
+
+                    // 1. Manual links
+                    for (Map.Entry<String, String> link : linkMap.entrySet()) {
+                        if (link.getValue().equals(entry.getId())) {
+                            linkedEmls.add(link.getKey());
+                        }
                     }
+
+                    // 2. Implicit PZN links
+                    if (eml != null && eml.getEntries() != null && entry.getPzn() != null) {
+                        for (MedicationListEntry emlEntry : eml.getEntries()) {
+                            // Check if PZN matches AND not already manually linked AND not explicitly
+                            // unlinked
+                            if (entry.getPzn().equals(emlEntry.getPzn()) && !unlinkedSet.contains(emlEntry.getId())) {
+                                // Avoid duplicates if already manually linked
+                                if (!linkedEmls.contains(emlEntry.getId())) {
+                                    linkedEmls.add(emlEntry.getId());
+                                }
+                            }
+                        }
+                    }
+
+                    entry.setLinkedEmlIds(linkedEmls);
                 }
-                entry.setLinkedEmlIds(linkedEmls);
             }
         }
         return Optional.ofNullable(plan);
@@ -349,11 +466,30 @@ public class MedicationService {
                 String matchReason = "No matching medication in plan";
                 String empRef = null;
 
-                // 1. Check manual link first (override)
+                // 1. Check manual link (priority)
                 String manuallyLinkedEmpId = linkMap.get(prescription.getId());
+
+                // If not found on prescription, check dispensations
+                if (manuallyLinkedEmpId == null && prescription.getDispensations() != null) {
+                    for (MedicationListEntry disp : prescription.getDispensations()) {
+                        String dispLinkedId = linkMap.get(disp.getId());
+                        if (dispLinkedId != null) {
+                            manuallyLinkedEmpId = dispLinkedId;
+                            break; // Found one
+                        }
+                    }
+                }
+
                 if (manuallyLinkedEmpId != null && emp != null) {
                     // Verify entry still exists
-                    boolean exists = emp.getEntries().stream().anyMatch(e -> e.getId().equals(manuallyLinkedEmpId));
+                    boolean exists = false;
+                    for (MedicationPlanEntry e : emp.getEntries()) {
+                        if (e.getId().equals(manuallyLinkedEmpId)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+
                     if (exists) {
                         status = ReconciliationStatus.LINKED;
                         empRef = manuallyLinkedEmpId;
@@ -361,14 +497,30 @@ public class MedicationService {
                     }
                 }
 
-                // 2. Check basedOn / technical link (if we had it in the backend for real)
+                // 2. Check basedOn / technical link
                 // For prototype, we treat PZN match as implicit technical link (Fall C) if not
-                // manually linked
+                // manually linked AND not explicitly unlinked.
+                // We check prescription PZN and dispensation PZNs
                 if (status == ReconciliationStatus.ORPHAN_NEW) {
-                    if (prescription.getPzn() != null && empPznMap.containsKey(prescription.getPzn())) {
+                    String pznMatchId = null;
+
+                    if (prescription.getPzn() != null && empPznMap.containsKey(prescription.getPzn())
+                            && !unlinkedSet.contains(prescription.getId())) {
+                        pznMatchId = empPznMap.get(prescription.getPzn()).getId();
+                    } else if (prescription.getDispensations() != null) {
+                        for (MedicationListEntry disp : prescription.getDispensations()) {
+                            if (disp.getPzn() != null && empPznMap.containsKey(disp.getPzn())
+                                    && !unlinkedSet.contains(disp.getId())) {
+                                pznMatchId = empPznMap.get(disp.getPzn()).getId();
+                                break;
+                            }
+                        }
+                    }
+
+                    if (pznMatchId != null) {
                         status = ReconciliationStatus.LINKED;
-                        empRef = empPznMap.get(prescription.getPzn()).getId();
-                        matchReason = "Same product (PZN: " + prescription.getPzn() + ")";
+                        empRef = pznMatchId;
+                        matchReason = "Same product (PZN match)";
                     }
                 }
 
