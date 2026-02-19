@@ -12,6 +12,8 @@
             "dosageForm": "Kapseln",
             "prescriberName": "Dr. Maria Müller",
             "authoredDate": "2026-02-08T10:30:00",
+            "medicationPlanIdentifier": "urn:uuid:6c84fb90-12c4-11e1-840d-7b25c5ee775a",
+            "basedOn": "MedicationRequest/emp-x-003",
             "dispensations": [
                 {
                     "id": "disp-001",
@@ -32,7 +34,7 @@
         {
             "id": "presc-002",
             "entryType": "prescription",
-            "medicationName": "Ramipril 5mg Tabletten",
+            "medicationName": "Ramipril-Ratiopharm 5mg",
             "pzn": "00885967",
             "activeIngredient": "Ramipril",
             "strength": "5mg",
@@ -45,7 +47,7 @@
                     "id": "disp-002",
                     "entryType": "dispensement",
                     "medicationName": "Ramipril-Ratiopharm 5mg",
-                    "pzn": "07654321",
+                    "pzn": "00885967",
                     "activeIngredient": "Ramipril",
                     "strength": "5mg",
                     "atcCode": "C09AA05",
@@ -53,7 +55,7 @@
                     "pharmacyName": "Apotheke am Markt",
                     "authoredDate": "2026-02-05T15:30:00",
                     "basedOnReference": "presc-002",
-                    "substituted": true,
+                    "substituted": false,
                     "originalPrescribedPzn": "00885967"
                 }
             ]
@@ -61,7 +63,7 @@
         {
             "id": "presc-003",
             "entryType": "prescription",
-            "medicationName": "Paracetamol 500mg Tabletten",
+            "medicationName": "Paracetamol-Ratiopharm 500 MG",
             "pzn": "01318813",
             "activeIngredient": "Paracetamol",
             "strength": "500mg",
@@ -73,7 +75,7 @@
                 {
                     "id": "disp-003",
                     "entryType": "dispensement",
-                    "medicationName": "Paracetamol 500mg Tabletten",
+                    "medicationName": "Paracetamol-Ratiopharm 500 MG",
                     "pzn": "01318813",
                     "activeIngredient": "Paracetamol",
                     "strength": "500mg",
@@ -89,37 +91,39 @@
         {
             "id": "presc-004",
             "entryType": "prescription",
-            "medicationName": "Metformin 500mg Filmtabletten",
-            "pzn": "02626910",
+            "medicationName": "Metformin Lich 1000mg",
+            "pzn": "02468135",
             "activeIngredient": "Metformin",
-            "strength": "500mg",
+            "strength": "1000mg",
             "atcCode": "A10BA02",
             "dosageForm": "Filmtabletten",
             "prescriberName": "Dr. Klaus Diabetologe",
             "authoredDate": "2026-01-20T09:00:00",
+            "medicationPlanIdentifier": "urn:uuid:12345678-1234-1234-1234-1234567890ab",
+            "basedOn": "MedicationRequest/emp-x-002",
             "dispensations": [
                 {
                     "id": "disp-004",
                     "entryType": "dispensement",
-                    "medicationName": "Metformin HEXAL 500mg",
-                    "pzn": "00126544",
+                    "medicationName": "Metformin Lich 1000mg",
+                    "pzn": "02468135",
                     "activeIngredient": "Metformin",
-                    "strength": "500mg",
+                    "strength": "1000mg",
                     "atcCode": "A10BA02",
                     "dosageForm": "Filmtabletten",
                     "pharmacyName": "Rosen-Apotheke",
                     "authoredDate": "2026-01-21T16:20:00",
                     "basedOnReference": "presc-004",
-                    "substituted": true,
-                    "originalPrescribedPzn": "02626910"
+                    "substituted": false,
+                    "originalPrescribedPzn": "02468135"
                 }
             ]
         },
         {
             "id": "presc-005",
             "entryType": "prescription",
-            "medicationName": "Ibuprofen 400mg Filmtabletten",
-            "pzn": "03707132",
+            "medicationName": "Ibuprofen 400mg ADGC",
+            "pzn": "00206123",
             "activeIngredient": "Ibuprofen",
             "strength": "400mg",
             "atcCode": "M01AE01",
@@ -130,8 +134,8 @@
                 {
                     "id": "disp-005",
                     "entryType": "dispensement",
-                    "medicationName": "Ibuprofen 400mg Filmtabletten",
-                    "pzn": "03707132",
+                    "medicationName": "Ibuprofen 400mg ADGC",
+                    "pzn": "00206123",
                     "activeIngredient": "Ibuprofen",
                     "strength": "400mg",
                     "atcCode": "M01AE01",

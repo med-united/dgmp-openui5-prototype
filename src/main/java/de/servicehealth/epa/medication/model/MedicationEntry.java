@@ -4,7 +4,7 @@ import java.util.Objects;
 
 /**
  * Base entity for medication entries in either eML or eMP.
- * Not instantiated directly - use MedicationListEntry or MedicationPlanEntry.
+ * Not instantiated directly - use MedicationStatement or MedicationRequest.
  */
 public abstract class MedicationEntry {
 

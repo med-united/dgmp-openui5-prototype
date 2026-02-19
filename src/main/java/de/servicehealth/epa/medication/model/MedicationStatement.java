@@ -9,7 +9,7 @@ import java.util.List;
  * dispensement record.
  * Corresponds to FHIR MedicationStatement per ePA Medication Service IG v1.3.0
  */
-public class MedicationListEntry extends MedicationEntry {
+public class MedicationStatement extends MedicationEntry {
 
     private String entryType; // "prescription" or "dispensement"
     private LocalDateTime authoredDate; // When prescription/dispensement occurred
@@ -25,16 +25,20 @@ public class MedicationListEntry extends MedicationEntry {
     private String originalPrescribedPzn; // Original PZN from prescription (when substituted)
     private String basedOnReference; // Reference to prescription ID (for dispensations)
 
+    // New LINK Logic
+    private String medicationPlanIdentifier; // UUID identifying the plan item
+    private String basedOn; // Reference to the MedicationRequest (eMP entry) ID
+
     // Hierarchical structure (for prescriptions)
-    private List<MedicationListEntry> dispensations; // Dispensations for this prescription
+    private List<MedicationStatement> dispensations; // Dispensations for this prescription
 
     // Constructors
 
-    public MedicationListEntry() {
+    public MedicationStatement() {
         super();
     }
 
-    public MedicationListEntry(String id, String pzn, String medicationName, String activeIngredient,
+    public MedicationStatement(String id, String pzn, String medicationName, String activeIngredient,
             String entryType, LocalDateTime authoredDate) {
         super(id, pzn, medicationName, activeIngredient);
         this.entryType = entryType;
@@ -147,24 +151,40 @@ public class MedicationListEntry extends MedicationEntry {
         this.basedOnReference = basedOnReference;
     }
 
-    public List<MedicationListEntry> getDispensations() {
+    public List<MedicationStatement> getDispensations() {
         if (dispensations == null) {
             dispensations = new ArrayList<>();
         }
         return dispensations;
     }
 
-    public void setDispensations(List<MedicationListEntry> dispensations) {
+    public void setDispensations(List<MedicationStatement> dispensations) {
         this.dispensations = dispensations;
     }
 
-    public void addDispensation(MedicationListEntry dispensation) {
+    public void addDispensation(MedicationStatement dispensation) {
         getDispensations().add(dispensation);
+    }
+
+    public String getMedicationPlanIdentifier() {
+        return medicationPlanIdentifier;
+    }
+
+    public void setMedicationPlanIdentifier(String medicationPlanIdentifier) {
+        this.medicationPlanIdentifier = medicationPlanIdentifier;
+    }
+
+    public String getBasedOn() {
+        return basedOn;
+    }
+
+    public void setBasedOn(String basedOn) {
+        this.basedOn = basedOn;
     }
 
     @Override
     public String toString() {
-        return "MedicationListEntry{" +
+        return "MedicationStatement{" +
                 "id='" + getId() + '\'' +
                 ", pzn='" + getPzn() + '\'' +
                 ", medicationName='" + getMedicationName() + '\'' +

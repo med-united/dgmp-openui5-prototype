@@ -2,8 +2,10 @@ sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/m/MessageToast",
     "sap/ui/table/TreeTable",
-    "epa/model/formatter"
-], function (Controller, MessageToast, TreeTable, formatter) {
+    "epa/model/formatter",
+    "sap/m/ActionSheet",
+    "sap/m/Button"
+], function (Controller, MessageToast, TreeTable, formatter, ActionSheet, Button) {
     "use strict";
 
     return Controller.extend("epa.controller.Reconciliation", {
@@ -12,6 +14,7 @@ sap.ui.define([
         formatRowHighlight: function (sStatus) {
             switch (sStatus) {
                 case "LINKED": return "Success";
+                case "PROPOSAL_MATCH": return "Information";
                 case "UNLINKED_UPDATE": return "Warning";
                 case "ORPHAN_NEW": return "Error";
                 default: return "None";
@@ -71,6 +74,10 @@ sap.ui.define([
             if (sTimeRange) aParams.push("timeRange=" + sTimeRange);
             if (aParams.length > 0) sUrl += "?" + aParams.join("&");
 
+            // Also load Medication List and Plan for context
+            this._loadMedicationList(sKvnr);
+            this._loadMedicationPlan(sKvnr);
+
             fetch(sUrl)
                 .then(function (response) {
                     if (!response.ok) {
@@ -94,6 +101,38 @@ sap.ui.define([
                 .catch(function (error) {
                     console.error("Failed to load reconciliation:", error);
                     oModel.setProperty("/reconciliationItems", []);
+                });
+        },
+
+        _loadMedicationList: function (sKvnr) {
+            var oModel = this.getView().getModel("app");
+            fetch("/api/medications/list/" + sKvnr)
+                .then(function (response) {
+                    if (!response.ok) throw new Error("List not found");
+                    return response.json();
+                })
+                .then(function (medicationList) {
+                    oModel.setProperty("/medicationList", medicationList);
+                })
+                .catch(function (error) {
+                    console.error("Failed to load medication list:", error);
+                    oModel.setProperty("/medicationList", { entries: [] });
+                });
+        },
+
+        _loadMedicationPlan: function (sKvnr) {
+            var oModel = this.getView().getModel("app");
+            fetch("/api/medications/plan/" + sKvnr)
+                .then(function (response) {
+                    if (!response.ok) throw new Error("Plan not found");
+                    return response.json();
+                })
+                .then(function (medicationPlan) {
+                    oModel.setProperty("/medicationPlan", medicationPlan);
+                })
+                .catch(function (error) {
+                    console.error("Failed to load medication plan:", error);
+                    oModel.setProperty("/medicationPlan", { entries: [] });
                 });
         },
 
@@ -155,22 +194,9 @@ sap.ui.define([
         },
 
         onLinkFromTree: function (oEvent) {
-            // Logic to handle linking from Tree Action
-            // Need to open dialog to select target EMP entry
-            var oContext = oEvent.getSource().getBindingContext("app");
+            var oSource = oEvent.getSource();
+            var oContext = oSource.getBindingContext("app");
             var oReconcileItem = oContext.getObject();
-            // Note: ReconcileItem might be a PrescriptionGroup from backend
-            // Check if it has 'emlEntry'
-
-            // The structure in table is flattened/mapped.
-            // But actually backend returns a list of PrescriptionGroup
-            // The actual EML entry ID is ID of the prescription? 
-
-            // Let's assume ID is correct.
-            var sEmlId = oReconcileItem.id;
-
-            // We need to call the MedicationList controller or replicate logic?
-            // Replicating logic is safer for decoupled controller.
 
             var that = this;
             var oView = this.getView();
@@ -182,44 +208,48 @@ sap.ui.define([
                 return;
             }
 
-            sap.ui.require(["sap/m/ActionSheet", "sap/m/Button"], function (ActionSheet, Button) {
-                var aButtons = [];
+            var aButtons = [];
+            aPlanEntries.forEach(function (oEmpEntry) {
+                if (oEmpEntry.status !== 'active') return;
 
-                aPlanEntries.forEach(function (oEmpEntry) {
-                    if (oEmpEntry.status !== 'active') return;
-
-                    aButtons.push(new Button({
-                        text: "Plan: " + oEmpEntry.medicationName,
-                        icon: "sap-icon://chain-link",
-                        press: function () {
-                            that._performLink(oReconcileItem, oEmpEntry);
-                        }
-                    }));
-                });
-
-                if (aButtons.length === 0) {
-                    MessageToast.show("No eligible active plan entries found.");
-                    return;
-                }
-
-
-                var oActionSheet = new ActionSheet({
-                    title: "Link to Plan",
-                    showCancelButton: true,
-                    buttons: aButtons
-                });
-                oView.addDependent(oActionSheet);
-                oActionSheet.openBy(oEvent.getSource());
+                aButtons.push(new Button({
+                    text: "Plan: " + oEmpEntry.medicationName,
+                    icon: "sap-icon://chain-link",
+                    press: function () {
+                        that._performLink(oReconcileItem, oEmpEntry);
+                    }
+                }));
             });
+
+            if (aButtons.length === 0) {
+                MessageToast.show("No eligible active plan entries found.");
+                return;
+            }
+
+            var oActionSheet = new ActionSheet({
+                title: "Link to Plan",
+                showCancelButton: true,
+                buttons: aButtons,
+                afterClose: function () {
+                    oActionSheet.destroy();
+                }
+            });
+            oView.addDependent(oActionSheet);
+            oActionSheet.openBy(oSource);
         },
 
         _performLink: function (oReconcileItem, oEmpEntry) {
             // API Call
             var sEmlId = oReconcileItem.id;
             var that = this;
+            var oModel = this.getView().getModel("app");
+            var sKvnr = oModel.getProperty("/currentKVNR");
 
-            fetch("/api/medications/link?emlId=" + sEmlId + "&empId=" + oEmpEntry.id, {
-                method: "POST"
+            fetch("/api/medications/" + sKvnr + "/link-emp?emlId=" + sEmlId + "&empId=" + oEmpEntry.id, {
+                method: "POST",
+                headers: {
+                    "X-Requesting-Organization": "Hospital-A"
+                }
             })
                 .then(function (response) {
                     if (!response.ok) throw new Error("Failed to create link");
@@ -237,9 +267,14 @@ sap.ui.define([
             var oContext = oEvent.getSource().getBindingContext("app");
             var oReconcileItem = oContext.getObject();
             var that = this;
+            var oModel = this.getView().getModel("app");
+            var sKvnr = oModel.getProperty("/currentKVNR");
 
-            fetch("/api/medications/link?emlId=" + oReconcileItem.id, {
-                method: "DELETE"
+            fetch("/api/medications/" + sKvnr + "/unlink-emp?emlId=" + oReconcileItem.id, {
+                method: "POST", // Changed to POST as per new API
+                headers: {
+                    "X-Requesting-Organization": "Hospital-A"
+                }
             })
                 .then(function (response) {
                     if (!response.ok) throw new Error("Failed to remove link");

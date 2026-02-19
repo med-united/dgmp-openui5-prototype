@@ -191,8 +191,11 @@ sap.ui.define([
             var that = this;
             var sKvnr = this.getView().getModel("app").getProperty("/currentKVNR");
 
-            fetch("/api/medications/link?emlId=" + oEmlEntry.id + "&empId=" + oEmpEntry.id, {
-                method: "POST"
+            fetch("/api/medications/" + sKvnr + "/link-emp?emlId=" + oEmlEntry.id + "&empId=" + oEmpEntry.id, {
+                method: "POST",
+                headers: {
+                    "X-Requesting-Organization": "Hospital-A"
+                }
             })
                 .then(function (response) {
                     if (!response.ok) throw new Error("Failed to create link");
@@ -212,8 +215,11 @@ sap.ui.define([
             var that = this;
             var sKvnr = this.getView().getModel("app").getProperty("/currentKVNR");
 
-            fetch("/api/medications/link?emlId=" + oEmlEntry.id, {
-                method: "DELETE"
+            fetch("/api/medications/" + sKvnr + "/unlink-emp?emlId=" + oEmlEntry.id, {
+                method: "POST",
+                headers: {
+                    "X-Requesting-Organization": "Hospital-A"
+                }
             })
                 .then(function (response) {
                     if (!response.ok) throw new Error("Failed to remove link");

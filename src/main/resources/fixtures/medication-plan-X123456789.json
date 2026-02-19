@@ -15,21 +15,24 @@
             "indication": "Bluthochdruck",
             "atcCode": "C09AA05",
             "authoredDate": "2026-01-01T09:00:00Z",
-            "entrySource": "prescription"
+            "entrySource": "prescription",
+            "medicationPlanIdentifier": "urn:uuid:a1b2c3d4-e5f6-7890-1234-567890abcdef",
+            "note": "Initial Hypertension treatment"
         },
         {
             "id": "emp-x-002",
             "status": "active",
-            "pzn": "02626910",
-            "medicationName": "Metformin 500mg Filmtabletten",
+            "pzn": "02468135",
+            "medicationName": "Metformin Lich 1000mg",
             "activeIngredient": "Metformin",
-            "strength": "500mg",
+            "strength": "1000mg",
             "dosageStructured": "1-0-1-0",
             "intakeInstructions": "zu den Mahlzeiten",
             "indication": "Diabetes mellitus Typ 2",
             "atcCode": "A10BA02",
             "authoredDate": "2026-01-15T14:00:00Z",
-            "entrySource": "prescription"
+            "entrySource": "prescription",
+            "medicationPlanIdentifier": "urn:uuid:12345678-1234-1234-1234-1234567890ab"
         },
         {
             "id": "emp-x-003",
@@ -43,13 +46,14 @@
             "indication": "Atemwegsinfekt",
             "atcCode": "J01CA04",
             "authoredDate": "2026-02-08T09:00:00Z",
-            "entrySource": "prescription"
+            "entrySource": "prescription",
+            "medicationPlanIdentifier": "urn:uuid:6c84fb90-12c4-11e1-840d-7b25c5ee775a"
         },
         {
             "id": "emp-x-004",
             "status": "paused",
-            "pzn": "03707132",
-            "medicationName": "Ibuprofen 400mg Filmtabletten",
+            "pzn": "00206123",
+            "medicationName": "Ibuprofen 400mg ADGC",
             "activeIngredient": "Ibuprofen",
             "strength": "400mg",
             "dosageText": "Bei Bedarf 1-2 Tabletten",
@@ -58,14 +62,15 @@
             "atcCode": "M01AE01",
             "authoredDate": "2026-02-01T10:00:00Z",
             "entrySource": "manual",
+            "medicationPlanIdentifier": "urn:uuid:manual-entry-ibuprofen-001",
             "reasonForPause": "Magenbeschwerden",
             "note": "Patient verträgt es aktuell nicht gut"
         },
         {
             "id": "emp-x-005",
             "status": "planned",
-            "pzn": "07240651",
-            "medicationName": "Aspirin 100mg Tabletten",
+            "pzn": "00037833",
+            "medicationName": "Aspirin 500mg überzogene Tabletten",
             "activeIngredient": "Acetylsalicylsäure",
             "strength": "100mg",
             "dosageStructured": "1-0-0-0",

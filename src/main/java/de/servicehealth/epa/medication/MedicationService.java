@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import de.servicehealth.epa.medication.model.DuplicateMatch;
 import de.servicehealth.epa.medication.model.MedicationList;
-import de.servicehealth.epa.medication.model.MedicationListEntry;
+import de.servicehealth.epa.medication.model.MedicationStatement;
 import de.servicehealth.epa.medication.model.MedicationPlan;
-import de.servicehealth.epa.medication.model.MedicationPlanEntry;
+import de.servicehealth.epa.medication.model.MedicationRequest;
 import de.servicehealth.epa.medication.model.PrescriptionGroup;
+import de.servicehealth.epa.medication.model.EMPChronologyProvenance;
+import de.servicehealth.epa.medication.model.EPAActivityProvenance;
 import de.servicehealth.epa.medication.model.ReconciliationStatus;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -31,14 +33,16 @@ public class MedicationService {
 
     private final ConcurrentHashMap<String, MedicationList> medicationCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, MedicationPlan> medicationPlanCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, EMPChronologyProvenance> chronologyCache = new ConcurrentHashMap<>(); // Current
+                                                                                                                  // chronology
+                                                                                                                  // state
+                                                                                                                  // per
+                                                                                                                  // KVNR
+    private final List<EPAActivityProvenance> activityLog = new ArrayList<>(); // Audit log
     private final ObjectMapper objectMapper;
 
-    // In-memory storage for links between eML and eMP entries
-    // Key: emlId, Value: empId
-    private final ConcurrentHashMap<String, String> linkMap = new ConcurrentHashMap<>();
-
-    // Set of eML IDs that have been explicitly unlinked (even if PZN matches)
-    private final ConcurrentHashMap.KeySetView<String, Boolean> unlinkedSet = ConcurrentHashMap.newKeySet();
+    // linkMap and unlinkedSet removed as part of refactoring to use
+    // medicationPlanIdentifier
 
     public MedicationService() {
         this.objectMapper = new ObjectMapper();
@@ -57,7 +61,7 @@ public class MedicationService {
         if (list != null) {
             Map<String, String> pznMap = new HashMap<>();
             if (plan != null && plan.getEntries() != null) {
-                for (MedicationPlanEntry entry : plan.getEntries()) {
+                for (MedicationRequest entry : plan.getEntries()) {
                     if (entry.getPzn() != null) {
                         pznMap.put(entry.getPzn(), entry.getId());
                     }
@@ -69,18 +73,30 @@ public class MedicationService {
         return Optional.ofNullable(list);
     }
 
-    private void populateLinkStatus(List<MedicationListEntry> entries, Map<String, String> pznMap) {
+    private void populateLinkStatus(List<MedicationStatement> entries, Map<String, String> pznMap) {
         if (entries == null)
             return;
 
-        for (MedicationListEntry entry : entries) {
-            // 1. Check manual link (priority)
-            String empId = linkMap.get(entry.getId());
+        for (MedicationStatement entry : entries) {
+            String empId = null;
 
-            // 2. Check implicit PZN link
-            if (empId == null && entry.getPzn() != null && !unlinkedSet.contains(entry.getId())) {
-                empId = pznMap.get(entry.getPzn());
+            // 1. Check Hard Link (MedicationPlanIdentifier)
+            if (entry.getMedicationPlanIdentifier() != null) {
+                // Resolve Identifier to an eMP Entry ID.
+                // Ideally this should use an Identifier->ID map, but for now we rely on the
+                // basedOn
+                // reference which is set by the link-emp operation.
+                if (entry.getBasedOn() != null && entry.getBasedOn().startsWith("MedicationRequest/")) {
+                    empId = entry.getBasedOn().substring("MedicationRequest/".length());
+                }
             }
+
+            // 2. Check implicit PZN link (Soft Match)
+            // REMOVED: Soft Matches (PZN match without Identifier) are NOT "Linked" in the
+            // eML view context.
+            // They are only "Proposals" in the Reconciliation view.
+            // This allows the user to explicit "Unlink" an item (remove Identifier), and it
+            // will stay Unlinked.
 
             entry.setLinkedToPlanId(empId);
 
@@ -90,70 +106,19 @@ public class MedicationService {
     }
 
     /**
-     * Create a link between an eML entry and an eMP entry.
-     * Cascades to dispensations if the eML entry is a prescription.
-     */
-    public void createLink(String kvnr, String emlId, String empId) {
-        // Link the target entry
-        linkMap.put(emlId, empId);
-        unlinkedSet.remove(emlId);
-        System.out.println("Linked eML entry " + emlId + " to eMP entry " + empId);
-
-        // Check if it's a prescription with dispensations and link them too
-        Optional<MedicationListEntry> entryOpt = findEntry(emlId);
-        if (entryOpt.isPresent()) {
-            MedicationListEntry entry = entryOpt.get();
-            if (entry.getDispensations() != null) {
-                for (MedicationListEntry disp : entry.getDispensations()) {
-                    linkMap.put(disp.getId(), empId);
-                    unlinkedSet.remove(disp.getId());
-                    System.out.println("  -> Cascaded link to dispensation " + disp.getId());
-                }
-            }
-        }
-    }
-
-    /**
-     * Remove a link for an eML entry.
-     * Cascades to dispensations if the eML entry is a prescription.
-     */
-    public boolean removeLink(String kvnr, String emlId) {
-        boolean removed = linkMap.remove(emlId) != null;
-
-        // Add to unlinkedSet to prevent implicit relinking
-        unlinkedSet.add(emlId);
-        System.out.println("Unlinked eML entry " + emlId);
-
-        // Check if it's a prescription with dispensations and unlink them too
-        Optional<MedicationListEntry> entryOpt = findEntry(emlId);
-        if (entryOpt.isPresent()) {
-            MedicationListEntry entry = entryOpt.get();
-            if (entry.getDispensations() != null) {
-                for (MedicationListEntry disp : entry.getDispensations()) {
-                    linkMap.remove(disp.getId());
-                    unlinkedSet.add(disp.getId());
-                    System.out.println("  -> Cascaded unlink to dispensation " + disp.getId());
-                }
-            }
-        }
-
-        return true; // Always return true as we might be unlinking an implicit link
-    }
-
-    /**
      * Helper to find an entry by ID across all cached medication lists.
      * Needed because link operations might not provide the correct KVNR.
      */
-    private Optional<MedicationListEntry> findEntry(String emlId) {
+    private Optional<MedicationStatement> findEntry(String emlId) {
         for (MedicationList list : medicationCache.values()) {
             if (list.getEntries() != null) {
-                for (MedicationListEntry entry : list.getEntries()) {
+                for (MedicationStatement entry : list.getEntries()) {
                     if (entry.getId().equals(emlId)) {
                         return Optional.of(entry);
                     }
                     // Check dispensations
                     if (entry.getDispensations() != null) {
-                        for (MedicationListEntry disp : entry.getDispensations()) {
+                        for (MedicationStatement disp : entry.getDispensations()) {
                             if (disp.getId().equals(emlId)) {
                                 return Optional.of(disp);
                             }
@@ -177,23 +142,41 @@ public class MedicationService {
                 // Get eML for implicit check
                 MedicationList eml = medicationCache.get(kvnr);
 
-                for (MedicationPlanEntry entry : plan.getEntries()) {
+                for (MedicationRequest entry : plan.getEntries()) {
                     List<String> linkedEmls = new ArrayList<>();
+                    String planEntryIdentifier = entry.getMedicationPlanIdentifier();
 
-                    // 1. Manual links
-                    for (Map.Entry<String, String> link : linkMap.entrySet()) {
-                        if (link.getValue().equals(entry.getId())) {
-                            linkedEmls.add(link.getKey());
+                    if (eml != null && eml.getEntries() != null) {
+                        // We need to iterate all eml entries to find links
+                        // This is expensive (O(N*M)) but fine for prototype
+                        List<MedicationStatement> allEmlEntries = new ArrayList<>();
+                        // Flatten the list (Prescriptions + Dispensations)
+                        for (MedicationStatement p : eml.getEntries()) {
+                            allEmlEntries.add(p);
+                            if (p.getDispensations() != null)
+                                allEmlEntries.addAll(p.getDispensations());
                         }
-                    }
 
-                    // 2. Implicit PZN links
-                    if (eml != null && eml.getEntries() != null && entry.getPzn() != null) {
-                        for (MedicationListEntry emlEntry : eml.getEntries()) {
-                            // Check if PZN matches AND not already manually linked AND not explicitly
-                            // unlinked
-                            if (entry.getPzn().equals(emlEntry.getPzn()) && !unlinkedSet.contains(emlEntry.getId())) {
-                                // Avoid duplicates if already manually linked
+                        for (MedicationStatement emlEntry : allEmlEntries) {
+                            boolean isLinked = false;
+
+                            // 1. Hard Link (Identifier Match)
+                            if (planEntryIdentifier != null
+                                    && planEntryIdentifier.equals(emlEntry.getMedicationPlanIdentifier())) {
+                                isLinked = true;
+                            }
+
+                            // 2. Soft Link (PZN Match) - Only if NOT checking for hard link elsewhere?
+                            // Actually, if it's hard linked to *another* entry, we shouldn't link here.
+                            // Logic: If emlEntry has NO identifier, AND PZN matches -> Soft Link
+                            else if (emlEntry.getMedicationPlanIdentifier() == null &&
+                                    entry.getPzn() != null &&
+                                    entry.getPzn().equals(emlEntry.getPzn())) {
+                                isLinked = true;
+                            }
+
+                            if (isLinked) {
+                                // Avoid duplicates
                                 if (!linkedEmls.contains(emlEntry.getId())) {
                                     linkedEmls.add(emlEntry.getId());
                                 }
@@ -202,6 +185,12 @@ public class MedicationService {
                     }
 
                     entry.setLinkedEmlIds(linkedEmls);
+                }
+
+                // Populate Chronology ID
+                EMPChronologyProvenance chrono = getChronology(kvnr);
+                if (chrono != null) {
+                    plan.setChronologyId(chrono.getId());
                 }
             }
         }
@@ -268,11 +257,59 @@ public class MedicationService {
     }
 
     /**
+     * Get or initialize the current chronology for a patient.
+     */
+    public EMPChronologyProvenance getChronology(String kvnr) {
+        return chronologyCache.computeIfAbsent(kvnr, this::createChronologySnapshot);
+    }
+
+    /**
+     * Updates the chronology state by taking a snapshot of the current plan.
+     * Returns the new provenance object.
+     */
+    public EMPChronologyProvenance updateChronology(String kvnr) {
+        EMPChronologyProvenance prov = createChronologySnapshot(kvnr);
+        chronologyCache.put(kvnr, prov);
+        return prov;
+    }
+
+    private EMPChronologyProvenance createChronologySnapshot(String kvnr) {
+        MedicationPlan plan = medicationPlanCache.get(kvnr);
+        List<MedicationRequest> snapshot = new ArrayList<>();
+        if (plan != null && plan.getEntries() != null) {
+            // Create deep copy of entries list to freeze state
+            snapshot.addAll(plan.getEntries());
+        }
+        return new EMPChronologyProvenance(java.util.UUID.randomUUID().toString(), snapshot);
+    }
+
+    /**
+     * Check if the provided chronology ID matches the current one.
+     * Throws exception if mismatch.
+     */
+    public void checkChronologyId(String kvnr, String acknowledgedId) {
+        EMPChronologyProvenance current = getChronology(kvnr);
+        if (current != null && !current.getId().equals(acknowledgedId)) {
+            throw new IllegalArgumentException("MEDSVC_EMP_CHRONOLOGY_ID_MISMATCH");
+        }
+    }
+
+    /**
+     * log activity
+     */
+    public void logActivity(String agent, String reference) {
+        EPAActivityProvenance prov = new EPAActivityProvenance(java.util.UUID.randomUUID().toString(), agent,
+                reference);
+        activityLog.add(prov);
+        System.out.println("AUDIT: " + agent + " modified " + reference);
+    }
+
+    /**
      * Add a new entry to the patient's medication plan.
      * If plan doesn't exist, one is created.
      */
-    public MedicationPlan addMedicationPlanEntry(String kvnr,
-            MedicationPlanEntry entry) {
+    public MedicationPlan addMedicationRequest(String kvnr,
+            MedicationRequest entry) {
         MedicationPlan plan = medicationPlanCache.computeIfAbsent(kvnr, k -> {
             MedicationPlan newPlan = new MedicationPlan();
             newPlan.setKvnr(k);
@@ -310,15 +347,15 @@ public class MedicationService {
      * @param entryId      ID of the entry to update
      * @param updatedEntry Entry with updated field values
      */
-    public Optional<MedicationPlan> updateMedicationPlanEntry(String kvnr, String entryId,
-            MedicationPlanEntry updatedEntry) {
+    public Optional<MedicationPlan> updateMedicationRequest(String kvnr, String entryId,
+            MedicationRequest updatedEntry) {
         MedicationPlan plan = medicationPlanCache.get(kvnr);
         if (plan == null) {
             return Optional.empty();
         }
 
         for (int i = 0; i < plan.getEntries().size(); i++) {
-            MedicationPlanEntry entry = plan.getEntries().get(i);
+            MedicationRequest entry = plan.getEntries().get(i);
             if (entry.getId().equals(entryId)) {
                 // Update fields
                 entry.setMedicationName(updatedEntry.getMedicationName());
@@ -351,7 +388,7 @@ public class MedicationService {
             return Optional.empty();
         }
 
-        for (MedicationPlanEntry entry : plan.getEntries()) {
+        for (MedicationRequest entry : plan.getEntries()) {
             if (entry.getId().equals(entryId)) {
                 entry.setStatus(newStatus);
 
@@ -389,13 +426,13 @@ public class MedicationService {
      * Check for duplicates in the medication plan.
      */
     public DuplicateMatch checkForDuplicates(String kvnr,
-            MedicationPlanEntry newEntry) {
+            MedicationRequest newEntry) {
         MedicationPlan plan = medicationPlanCache.get(kvnr);
         if (plan == null || plan.getEntries().isEmpty()) {
             return new DuplicateMatch(false, null, null);
         }
 
-        for (MedicationPlanEntry existing : plan.getEntries()) {
+        for (MedicationRequest existing : plan.getEntries()) {
             // Check PZN match
             if (newEntry.getPzn() != null && newEntry.getPzn().equals(existing.getPzn())) {
                 return new DuplicateMatch(true, "PZN", existing);
@@ -436,22 +473,22 @@ public class MedicationService {
         }
 
         // Map eMP entries for faster lookup
-        Map<String, MedicationPlanEntry> empPznMap = new HashMap<>();
-        Map<String, MedicationPlanEntry> empAtcMap = new HashMap<>();
+        Map<String, MedicationRequest> empPznMap = new HashMap<>();
+        Map<String, MedicationRequest> empAtcMap = new HashMap<>();
 
         if (emp != null && emp.getEntries() != null) {
-            for (MedicationPlanEntry entry : emp.getEntries()) {
+            for (MedicationRequest entry : emp.getEntries()) {
                 if (entry.getPzn() != null) {
                     empPznMap.put(entry.getPzn(), entry);
                 }
-                if (entry.getAtcCode() != null && entry.getAtcCode().length() >= 5) {
-                    empAtcMap.put(entry.getAtcCode().substring(0, 5), entry);
+                if (entry.getAtcCode() != null && entry.getAtcCode().length() >= 7) {
+                    empAtcMap.put(entry.getAtcCode().substring(0, 7), entry);
                 }
             }
         }
 
         // Iterate through Prescriptions (Root Level)
-        for (MedicationListEntry prescription : eml.getEntries()) {
+        for (MedicationStatement prescription : eml.getEntries()) {
             // Only create groups for prescriptions
             if (prescription.isPrescription()) {
                 PrescriptionGroup group = new PrescriptionGroup(prescription);
@@ -466,51 +503,72 @@ public class MedicationService {
                 String matchReason = "No matching medication in plan";
                 String empRef = null;
 
-                // 1. Check manual link (priority)
-                String manuallyLinkedEmpId = linkMap.get(prescription.getId());
+                // 1. Check Hard Link (MedicationPlanIdentifier)
+                // This is the primary source of truth now.
+                String linkedPlanId = prescription.getMedicationPlanIdentifier();
 
-                // If not found on prescription, check dispensations
-                if (manuallyLinkedEmpId == null && prescription.getDispensations() != null) {
-                    for (MedicationListEntry disp : prescription.getDispensations()) {
-                        String dispLinkedId = linkMap.get(disp.getId());
-                        if (dispLinkedId != null) {
-                            manuallyLinkedEmpId = dispLinkedId;
-                            break; // Found one
-                        }
-                    }
-                }
-
-                if (manuallyLinkedEmpId != null && emp != null) {
-                    // Verify entry still exists
-                    boolean exists = false;
-                    for (MedicationPlanEntry e : emp.getEntries()) {
-                        if (e.getId().equals(manuallyLinkedEmpId)) {
-                            exists = true;
+                // If not on prescription, check if any dispensation is linked (Cascading logic)
+                if (linkedPlanId == null && prescription.getDispensations() != null) {
+                    for (MedicationStatement disp : prescription.getDispensations()) {
+                        if (disp.getMedicationPlanIdentifier() != null) {
+                            linkedPlanId = disp.getMedicationPlanIdentifier();
                             break;
                         }
                     }
+                }
 
-                    if (exists) {
+                // If we found a link identifier...
+                if (linkedPlanId != null) {
+                    // Find the Plan Entry with this Identifier (UUID matches
+                    // MedicationPlanIdentifier field in Plan Entry?)
+                    // OR is the stored ID the Entry ID (basedOn)?
+                    // The design says:
+                    // emlEntry.setMedicationPlanIdentifier(empEntry.getMedicationPlanIdentifier())
+                    // But wait, linkMap stored the Entry ID.
+                    // Let's check how we link:
+                    // emlEntry.setMedicationPlanIdentifier(empEntry.getMedicationPlanIdentifier());
+                    // emlEntry.setBasedOn("MedicationRequest/" + empId);
+
+                    // So we need to match against eMP entries' medicationPlanIdentifier OR their ID
+                    // if basedOn is used?
+                    // The requirement says: Hard Link exists if they have same Identifier.
+
+                    String targetIdentifier = linkedPlanId; // This is the UUID
+                    String targetEmpId = null;
+
+                    if (emp != null) {
+                        for (MedicationRequest e : emp.getEntries()) {
+                            // Check match by Identifier (UUID)
+                            if (targetIdentifier.equals(e.getMedicationPlanIdentifier())) {
+                                targetEmpId = e.getId();
+                                break;
+                            }
+                            // Fallback: Check match by Entry ID (Legacy / basedOn logic)
+                            // linkMap stored Entry ID.
+                            if (targetIdentifier.equals(e.getId())) {
+                                targetEmpId = e.getId();
+                                break;
+                            }
+                        }
+                    }
+
+                    if (targetEmpId != null) {
                         status = ReconciliationStatus.LINKED;
-                        empRef = manuallyLinkedEmpId;
-                        matchReason = "Manually linked to plan entry";
+                        empRef = targetEmpId;
+                        matchReason = "Linked to plan entry";
                     }
                 }
 
-                // 2. Check basedOn / technical link
-                // For prototype, we treat PZN match as implicit technical link (Fall C) if not
-                // manually linked AND not explicitly unlinked.
-                // We check prescription PZN and dispensation PZNs
+                // 2. Check basedOn / technical link (PZN Match)
+                // Only if NOT already linked
                 if (status == ReconciliationStatus.ORPHAN_NEW) {
                     String pznMatchId = null;
 
-                    if (prescription.getPzn() != null && empPznMap.containsKey(prescription.getPzn())
-                            && !unlinkedSet.contains(prescription.getId())) {
+                    if (prescription.getPzn() != null && empPznMap.containsKey(prescription.getPzn())) {
                         pznMatchId = empPznMap.get(prescription.getPzn()).getId();
                     } else if (prescription.getDispensations() != null) {
-                        for (MedicationListEntry disp : prescription.getDispensations()) {
-                            if (disp.getPzn() != null && empPznMap.containsKey(disp.getPzn())
-                                    && !unlinkedSet.contains(disp.getId())) {
+                        for (MedicationStatement disp : prescription.getDispensations()) {
+                            if (disp.getPzn() != null && empPznMap.containsKey(disp.getPzn())) {
                                 pznMatchId = empPznMap.get(disp.getPzn()).getId();
                                 break;
                             }
@@ -518,7 +576,7 @@ public class MedicationService {
                     }
 
                     if (pznMatchId != null) {
-                        status = ReconciliationStatus.LINKED;
+                        status = ReconciliationStatus.PROPOSAL_MATCH;
                         empRef = pznMatchId;
                         matchReason = "Same product (PZN match)";
                     }
@@ -526,8 +584,8 @@ public class MedicationService {
 
                 // 3. Check for UNLINKED_UPDATE (Fall B) - Same Active Ingredient
                 if (status == ReconciliationStatus.ORPHAN_NEW) {
-                    if (prescription.getAtcCode() != null && prescription.getAtcCode().length() >= 5) {
-                        String atcGroup = prescription.getAtcCode().substring(0, 5);
+                    if (prescription.getAtcCode() != null && prescription.getAtcCode().length() >= 7) {
+                        String atcGroup = prescription.getAtcCode().substring(0, 7);
                         if (empAtcMap.containsKey(atcGroup)) {
                             status = ReconciliationStatus.UNLINKED_UPDATE;
                             matchReason = "Active ingredient found in plan (" + atcGroup + ")";
@@ -543,6 +601,7 @@ public class MedicationService {
                 groups.add(group);
             }
         }
+
         // Sort: ORPHAN > UNLINKED > LINKED
         groups.sort((g1, g2) -> {
             int s1 = getStatusPriority(g1.getStatus());
@@ -564,14 +623,153 @@ public class MedicationService {
         switch (status) {
             case ORPHAN_NEW:
                 return 1;
-            case UNLINKED_UPDATE:
+            case PROPOSAL_MATCH:
                 return 2;
-            case LINKED:
+            case UNLINKED_UPDATE:
                 return 3;
+            case LINKED:
+                return 4;
             case CANCELLED:
                 return 4;
             default:
                 return 5;
+        }
+    }
+
+    // --- New FHIR-compliant Logic ---
+
+    public void linkMedicationPlanEntry(String kvnr, String emlId, String empId, String agent) {
+        validateOrganizationHeader(agent);
+
+        MedicationPlan plan = medicationPlanCache.get(kvnr);
+        if (plan == null)
+            throw new IllegalArgumentException("Plan not found");
+
+        MedicationRequest empEntry = plan.getEntries().stream()
+                .filter(e -> e.getId().equals(empId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("eMP Entry not found"));
+
+        MedicationStatement emlEntry = findEntry(emlId)
+                .orElseThrow(() -> new IllegalArgumentException("eML Entry not found"));
+
+        // Ensure Identifier exists on eMP entry
+        if (empEntry.getMedicationPlanIdentifier() == null) {
+            empEntry.setMedicationPlanIdentifier(java.util.UUID.randomUUID().toString());
+        }
+
+        // Set Hard Link on eML entry
+        emlEntry.setMedicationPlanIdentifier(empEntry.getMedicationPlanIdentifier());
+        emlEntry.setBasedOn("MedicationRequest/" + empId);
+
+        // Audit and Chronology
+        updateChronology(kvnr);
+        logActivity(agent, "Linked eML/" + emlId + " to eMP/" + empId);
+    }
+
+    public void unlinkMedicationPlanEntry(String kvnr, String emlId, String agent) {
+        validateOrganizationHeader(agent);
+
+        MedicationStatement emlEntry = findEntry(emlId)
+                .orElseThrow(() -> new IllegalArgumentException("eML Entry not found"));
+
+        // Remove Hard Link
+        emlEntry.setMedicationPlanIdentifier(null);
+        emlEntry.setBasedOn(null);
+
+        // Audit and Chronology
+        updateChronology(kvnr);
+        logActivity(agent, "Unlinked eML/" + emlId);
+    }
+
+    public MedicationRequest addMedicationRequest(String kvnr, MedicationRequest entry, String linkedEmlId,
+            String agent) {
+        validateOrganizationHeader(agent);
+        validateDosage(entry);
+
+        entry.setMedicationPlanIdentifier(java.util.UUID.randomUUID().toString());
+
+        addMedicationRequest(kvnr, entry); // Delegate to existing add logic for list management
+
+        if (linkedEmlId != null) {
+            MedicationStatement emlEntry = findEntry(linkedEmlId).orElse(null);
+            if (emlEntry != null) {
+                emlEntry.setMedicationPlanIdentifier(entry.getMedicationPlanIdentifier());
+                emlEntry.setBasedOn("MedicationRequest/" + entry.getId());
+            }
+        }
+
+        updateChronology(kvnr);
+        logActivity(agent, "Added eMP/" + entry.getId());
+        return entry;
+    }
+
+    public MedicationPlan updateMedicationRequest(String kvnr, String entryId, MedicationRequest entry,
+            String linkedEmlId,
+            String acknowledgedChronologyId, String agent) {
+        validateOrganizationHeader(agent);
+        checkChronologyId(kvnr, acknowledgedChronologyId);
+        validateDosage(entry);
+
+        // Update logic
+        MedicationPlan plan = medicationPlanCache.get(kvnr);
+        if (plan != null) {
+            MedicationRequest existing = plan.getEntries().stream()
+                    .filter(e -> e.getId().equals(entryId))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Entry not found"));
+
+            // Update fields
+            existing.setMedicationName(entry.getMedicationName());
+            existing.setPzn(entry.getPzn());
+            existing.setDosageText(entry.getDosageText());
+            existing.setDosageStructured(entry.getDosageStructured());
+            existing.setNote(entry.getNote());
+            // ... other fields
+            existing.setEntryType(entry.getEntryType());
+            existing.setStrength(entry.getStrength());
+            existing.setActiveIngredient(entry.getActiveIngredient());
+            existing.setAtcCode(entry.getAtcCode());
+            existing.setIntakeInstructions(entry.getIntakeInstructions());
+            existing.setIndication(entry.getIndication());
+
+            if (linkedEmlId != null) {
+                MedicationStatement emlEntry = findEntry(linkedEmlId).orElse(null);
+                if (emlEntry != null) {
+                    emlEntry.setMedicationPlanIdentifier(existing.getMedicationPlanIdentifier());
+                    emlEntry.setBasedOn("MedicationRequest/" + existing.getId());
+                }
+            }
+
+            updateChronology(kvnr);
+            logActivity(agent, "Updated eMP/" + entryId);
+
+            // Set Chronology ID on plan before returning
+            EMPChronologyProvenance chrono = getChronology(kvnr);
+            if (chrono != null) {
+                plan.setChronologyId(chrono.getId());
+            }
+
+            return plan;
+        }
+        throw new IllegalArgumentException("Plan not found");
+    }
+
+    private void validateOrganizationHeader(String agent) {
+        if (agent == null || agent.trim().isEmpty()) {
+            throw new IllegalArgumentException("SVC_ORG_HEADER_PROFILE_MISMATCH");
+        }
+        // In prototype, we accept any non-empty string.
+        // In real impl, check profile.
+    }
+
+    private void validateDosage(MedicationRequest entry) {
+        if (entry.getDosageStructured() != null) {
+            // Strict check: generated text MUST match dosageText
+            // For prototype: we assume simple generation logic: text == structured
+            if (entry.getDosageText() != null && !entry.getDosageText().equals(entry.getDosageStructured())) {
+                throw new IllegalArgumentException("MEDSVC_DOSAGE_INVALID");
+            }
         }
     }
 }

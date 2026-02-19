@@ -1,7 +1,7 @@
 package de.servicehealth.epa.medication;
 
 import de.servicehealth.epa.medication.model.MedicationList;
-import de.servicehealth.epa.medication.model.MedicationListEntry;
+import de.servicehealth.epa.medication.model.MedicationStatement;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Assertions;
@@ -18,14 +18,22 @@ public class LinkLogicTest {
     @Test
     public void testCascadingLinkAndUnlink() {
         String kvnr = "X123456789";
+        String agent = "TestAgent";
 
         // 1. Load initial state
         Optional<MedicationList> listOpt = medicationService.loadMedicationList(kvnr);
         Assertions.assertTrue(listOpt.isPresent(), "Medication list should exist");
         MedicationList list = listOpt.get();
 
+        // 2. Ensure we have a plan entry to link TO
+        Optional<de.servicehealth.epa.medication.model.MedicationPlan> planOpt = medicationService
+                .loadMedicationPlan(kvnr);
+        Assertions.assertTrue(planOpt.isPresent(), "Medication plan should exist");
+        de.servicehealth.epa.medication.model.MedicationRequest planEntry = planOpt.get().getEntries().get(0);
+        String targetPlanEntryId = planEntry.getId();
+
         // Find Amoxicillin prescription (PZN 00764973)
-        MedicationListEntry prescription = list.getEntries().stream()
+        MedicationStatement prescription = list.getEntries().stream()
                 .filter(e -> "00764973".equals(e.getPzn()) && "prescription".equals(e.getEntryType()))
                 .findFirst()
                 .orElse(null);
@@ -34,38 +42,29 @@ public class LinkLogicTest {
         Assertions.assertTrue(prescription.getDispensations() != null && !prescription.getDispensations().isEmpty(),
                 "Prescription should have dispensations");
 
-        MedicationListEntry dispensation = prescription.getDispensations().get(0);
         String prescriptionId = prescription.getId();
-        String dispensationId = dispensation.getId();
-        String targetPlanId = "emp-test-link-target";
 
-        // 2. Test Link
+        // 3. Test Link
         System.out.println("Testing Link...");
-        medicationService.createLink(kvnr, prescriptionId, targetPlanId);
+        // Use new API: linkMedicationPlanEntry
+        medicationService.linkMedicationPlanEntry(kvnr, prescriptionId, targetPlanEntryId, agent);
 
         // Reload to verify effects
         list = medicationService.loadMedicationList(kvnr).get();
-        prescription = findEntryInList(list, prescriptionId);
-        dispensation = findEntryInList(list, dispensationId); // Helper needed because findEntryInList might not check
-                                                              // deep
+        // scan top level
+        prescription = list.getEntries().stream().filter(e -> e.getId().equals(prescriptionId)).findFirst()
+                .orElse(null);
 
-        // Note: findEntryInList above needs to be smart or we just navigate
-        // Easier to navigate from prescription again
-        if (prescription == null) {
-            // scan top level
-            prescription = list.getEntries().stream().filter(e -> e.getId().equals(prescriptionId)).findFirst()
-                    .orElse(null);
-        }
         Assertions.assertNotNull(prescription);
-        dispensation = prescription.getDispensations().get(0);
 
-        Assertions.assertEquals(targetPlanId, prescription.getLinkedToPlanId(), "Prescription should be linked");
-        Assertions.assertEquals(targetPlanId, dispensation.getLinkedToPlanId(),
-                "Dispensation should be linked (cascaded)");
+        // Verify Hard Link (Identifier is set)
+        Assertions.assertNotNull(prescription.getMedicationPlanIdentifier(), "Prescription should have Identifier set");
+        Assertions.assertEquals(planEntry.getMedicationPlanIdentifier(), prescription.getMedicationPlanIdentifier(),
+                "Identifier should match plan entry");
 
-        // 3. Test Unlink
+        // 4. Test Unlink
         System.out.println("Testing Unlink...");
-        medicationService.removeLink(kvnr, prescriptionId);
+        medicationService.unlinkMedicationPlanEntry(kvnr, prescriptionId, agent);
 
         // Reload to verify effects
         list = medicationService.loadMedicationList(kvnr).get();
@@ -73,23 +72,8 @@ public class LinkLogicTest {
         prescription = list.getEntries().stream().filter(e -> e.getId().equals(prescriptionId)).findFirst()
                 .orElse(null);
         Assertions.assertNotNull(prescription);
-        dispensation = prescription.getDispensations().get(0);
 
-        Assertions.assertNull(prescription.getLinkedToPlanId(), "Prescription should be unlinked");
-        Assertions.assertNull(dispensation.getLinkedToPlanId(), "Dispensation should be unlinked (cascaded)");
-    }
-
-    private MedicationListEntry findEntryInList(MedicationList list, String id) {
-        for (MedicationListEntry entry : list.getEntries()) {
-            if (entry.getId().equals(id))
-                return entry;
-            if (entry.getDispensations() != null) {
-                for (MedicationListEntry disp : entry.getDispensations()) {
-                    if (disp.getId().equals(id))
-                        return disp;
-                }
-            }
-        }
-        return null;
+        Assertions.assertNull(prescription.getMedicationPlanIdentifier(),
+                "Prescription should be unlinked (Identifier null)");
     }
 }

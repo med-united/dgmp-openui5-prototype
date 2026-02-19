@@ -1,6 +1,6 @@
 package de.servicehealth.epa.medication;
 
-import de.servicehealth.epa.medication.model.MedicationPlanEntry;
+import de.servicehealth.epa.medication.model.MedicationRequest;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class MedicationDatabase {
 
-    private final List<MedicationPlanEntry> database = new ArrayList<>();
+    private final List<MedicationRequest> database = new ArrayList<>();
 
     public MedicationDatabase() {
         initDatabase();
@@ -60,7 +60,7 @@ public class MedicationDatabase {
     }
 
     private void add(String pzn, String name, String ingredient, String strength, String dosage, String indication) {
-        MedicationPlanEntry entry = new MedicationPlanEntry();
+        MedicationRequest entry = new MedicationRequest();
         entry.setPzn(pzn);
         entry.setMedicationName(name);
         entry.setActiveIngredient(ingredient);
@@ -73,7 +73,7 @@ public class MedicationDatabase {
     /**
      * Search medications by name or PZN (case-insensitive substring).
      */
-    public List<MedicationPlanEntry> search(String query) {
+    public List<MedicationRequest> search(String query) {
         if (query == null || query.trim().isEmpty()) {
             return new ArrayList<>();
         }
@@ -92,7 +92,7 @@ public class MedicationDatabase {
     /**
      * Find exact match by PZN.
      */
-    public MedicationPlanEntry findByPzn(String pzn) {
+    public MedicationRequest findByPzn(String pzn) {
         return database.stream()
                 .filter(m -> pzn.equals(m.getPzn()))
                 .findFirst()

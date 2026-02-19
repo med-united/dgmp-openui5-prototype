@@ -11,8 +11,8 @@ import java.util.List;
  */
 public class PrescriptionGroup {
 
-    private MedicationListEntry prescription;
-    private List<MedicationListEntry> dispensations;
+    private MedicationStatement prescription;
+    private List<MedicationStatement> dispensations;
     private ReconciliationStatus status;
     private String empReference; // Reference to linked eMP entry (if LINKED)
     private String matchReason; // Human-readable explanation of status
@@ -21,7 +21,7 @@ public class PrescriptionGroup {
         this.dispensations = new ArrayList<>();
     }
 
-    public PrescriptionGroup(MedicationListEntry prescription) {
+    public PrescriptionGroup(MedicationStatement prescription) {
         this.prescription = prescription;
         this.dispensations = new ArrayList<>();
     }
@@ -32,23 +32,23 @@ public class PrescriptionGroup {
         return prescription != null ? prescription.getId() : null;
     }
 
-    public MedicationListEntry getPrescription() {
+    public MedicationStatement getPrescription() {
         return prescription;
     }
 
-    public void setPrescription(MedicationListEntry prescription) {
+    public void setPrescription(MedicationStatement prescription) {
         this.prescription = prescription;
     }
 
-    public List<MedicationListEntry> getDispensations() {
+    public List<MedicationStatement> getDispensations() {
         return dispensations;
     }
 
-    public void setDispensations(List<MedicationListEntry> dispensations) {
+    public void setDispensations(List<MedicationStatement> dispensations) {
         this.dispensations = dispensations;
     }
 
-    public void addDispensation(MedicationListEntry dispensation) {
+    public void addDispensation(MedicationStatement dispensation) {
         this.dispensations.add(dispensation);
     }
 

@@ -14,8 +14,8 @@ public class ReconciliationItem {
     private String medicationName;
     private String atcCode;
 
-    private MedicationListEntry emlEntry; // The historical entry (source)
-    private MedicationPlanEntry empEntry; // The matching plan entry (target), if any
+    private MedicationStatement emlEntry; // The historical entry (source)
+    private MedicationRequest empEntry; // The matching plan entry (target), if any
 
     // Enhanced matching fields
     private MatchType matchType; // EXACT_MATCH, PROBABLE_MATCH, or ORPHAN
@@ -32,7 +32,7 @@ public class ReconciliationItem {
         this.missingFields = new ArrayList<>();
     }
 
-    public ReconciliationItem(MedicationListEntry emlEntry, MedicationPlanEntry empEntry) {
+    public ReconciliationItem(MedicationStatement emlEntry, MedicationRequest empEntry) {
         this();
         this.emlEntry = emlEntry;
         this.empEntry = empEntry;
@@ -93,19 +93,19 @@ public class ReconciliationItem {
         this.atcCode = atcCode;
     }
 
-    public MedicationListEntry getEmlEntry() {
+    public MedicationStatement getEmlEntry() {
         return emlEntry;
     }
 
-    public void setEmlEntry(MedicationListEntry emlEntry) {
+    public void setEmlEntry(MedicationStatement emlEntry) {
         this.emlEntry = emlEntry;
     }
 
-    public MedicationPlanEntry getEmpEntry() {
+    public MedicationRequest getEmpEntry() {
         return empEntry;
     }
 
-    public void setEmpEntry(MedicationPlanEntry empEntry) {
+    public void setEmpEntry(MedicationRequest empEntry) {
         this.empEntry = empEntry;
     }
 

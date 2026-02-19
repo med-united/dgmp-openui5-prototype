@@ -20,6 +20,12 @@ public enum ReconciliationStatus {
     UNLINKED_UPDATE,
 
     /**
+     * Prescription matches a plan entry by PZN (Soft Match).
+     * Action: Show "Bestätigen" button to create Hard Link
+     */
+    PROPOSAL_MATCH,
+
+    /**
      * Fall A: No basedOnReference AND no matching active ingredient in eMP.
      * Action: Show "In eMP aufnehmen" button to add new entry (requires dosage
      * dialog)

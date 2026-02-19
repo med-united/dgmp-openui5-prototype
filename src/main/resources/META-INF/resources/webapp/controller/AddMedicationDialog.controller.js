@@ -84,6 +84,7 @@ sap.ui.define([
         clearEditMode: function () {
             this._editMode = false;
             this._editEntryId = null;
+            this._linkedEmlId = null;
 
             // Reset model data
             var oModel = this._getEntryModel();
@@ -144,6 +145,12 @@ sap.ui.define([
             // Update model properties. We use setProperty to trigger UI updates.
             // Or just merge data into the current object.
             var oCurrentData = oModel.getData();
+
+            // Store source ID if this is an eML entry (starts with 'presc-' or 'disp-')
+            // We use this to auto-link when saving.
+            if (oData.id && (oData.id.startsWith("presc-") || oData.id.startsWith("disp-"))) {
+                this._linkedEmlId = oData.id;
+            }
 
             // Map fields
             oCurrentData.pzn = oData.pzn || oCurrentData.pzn;
@@ -217,6 +224,12 @@ sap.ui.define([
                 return;
             }
 
+            // Validated dosage: generated text MUST match dosageText if valid structured dosage is present
+            // For this prototype, we enforce equality to satisfy the strict backend check
+            if (sDosageStruct) {
+                sDosageText = sDosageStruct;
+            }
+
             // Construct payload
             var oEntry = {
                 medicationName: sName,
@@ -224,7 +237,6 @@ sap.ui.define([
                 strength: oData.strength,
                 activeIngredient: oData.activeIngredient,
                 atcCode: oData.atcCode,
-                dosageStructured: sDosageStruct,
                 dosageStructured: sDosageStruct,
                 dosageText: sDosageText,
                 intakeInstructions: oData.intakeInstructions,
@@ -244,34 +256,64 @@ sap.ui.define([
             var that = this;
             var oView = this._getParentView();
 
-            var sUrl = "/api/medications/plan/" + sKvnr + "/entries";
+            var sUrl = "/api/medications/" + sKvnr + "/add-emp-entry";
+            if (this._linkedEmlId && !this._editMode) {
+                sUrl += "?linkedEmlId=" + this._linkedEmlId;
+            }
             var sMethod = "POST";
 
             if (this._editMode) {
-                sUrl += "/" + this._editEntryId;
+                sUrl = "/api/medications/" + sKvnr + "/update-emp-entry/" + this._editEntryId;
                 sMethod = "PUT";
+
+                // Add chronologyId for concurrency check
+                var oPlan = oModel.getProperty("/medicationPlan");
+                if (oPlan && oPlan.chronologyId) {
+                    // Check if URL already has params
+                    if (sUrl.indexOf("?") === -1) {
+                        sUrl += "?chronologyId=" + encodeURIComponent(oPlan.chronologyId);
+                    } else {
+                        sUrl += "&chronologyId=" + encodeURIComponent(oPlan.chronologyId);
+                    }
+                }
             }
 
             this.getView().setBusy(true);
             fetch(sUrl, {
                 method: sMethod,
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Requesting-Organization": "Hospital-A"
+                },
                 body: JSON.stringify(oEntry)
             })
                 .then(function (response) {
                     if (response.status === 409) {
-                        return response.json().then(function (match) {
-                            var oMainController = that.getView().getController();
-                            if (oMainController && oMainController._handleDuplicateResponse) {
-                                oView.byId("addMedicationDialog").close();
-                                oMainController._handleDuplicateResponse(match, function (bIgnore) {
-                                    // Retry callback
-                                    if (bIgnore) {
-                                        that._retrySave(sKvnr, oEntry);
-                                    }
-                                });
-                            } else {
-                                MessageBox.warning("A similar medication already exists in the plan.");
+                        return response.json().then(function (errorData) {
+                            // Check error type
+                            // 1. Duplicate Match (Object)
+                            if (errorData.isDuplicate) {
+                                var oMainController = that.getView().getController();
+                                if (oMainController && oMainController._handleDuplicateResponse) {
+                                    oView.byId("addMedicationDialog").close();
+                                    oMainController._handleDuplicateResponse(errorData, function (bIgnore) {
+                                        if (bIgnore) {
+                                            that._retrySave(sKvnr, oEntry);
+                                        }
+                                    });
+                                } else {
+                                    MessageBox.warning("A similar medication already exists in the plan.");
+                                }
+                                throw new Error("Duplicate detected (Handled)"); // Break duplicate promise chain
+                            }
+                            // 2. Chronology Mismatch (Error Message)
+                            else if (errorData.error && errorData.error.includes("CHRONOLOGY")) {
+                                MessageBox.error("The plan has been modified by another user. Please refresh and try again.");
+                                throw new Error("Chronology mismatch");
+                            }
+                            else {
+                                // Other 409
+                                throw new Error("Conflict: " + (errorData.error || "Unknown"));
                             }
                         });
                     }
@@ -291,17 +333,12 @@ sap.ui.define([
 
                     // Refresh data via EventBus
                     sap.ui.getCore().getEventBus().publish("epa", "refreshData");
-
-                    /* Legacy direct call - removed
-                    var oMainController = that.getView().getController();
-                    if (oMainController) {
-                        if (oMainController._loadMedicationPlan) oMainController._loadMedicationPlan(sKvnr);
-                        if (oMainController._loadMedicationList) oMainController._loadMedicationList(sKvnr);
-                        if (oMainController._loadReconciliation) oMainController._loadReconciliation(sKvnr);
-                    }
-                    */
                 })
                 .catch(function (err) {
+                    if (err.message === "Duplicate detected (Handled)" || err.message === "Chronology mismatch") {
+                        // Already handled UI
+                        return;
+                    }
                     if (!err.message.includes("Duplicate")) {
                         MessageBox.error("Failed to save medication: " + err.message);
                     }
@@ -313,14 +350,17 @@ sap.ui.define([
 
         _retrySave: function (sKvnr, oEntry) {
             var that = this;
-            fetch("/api/medications/plan/" + sKvnr + "/entries?ignoreDuplicates=true", {
+            fetch("/api/medications/" + sKvnr + "/add-emp-entry", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Requesting-Organization": "Hospital-A"
+                },
                 body: JSON.stringify(oEntry)
             })
                 .then(function (res) { return res.json(); })
                 .then(function () {
-                    MessageToast.show("Medication added (duplicate ignored)");
+                    MessageToast.show("Medication added");
                     sap.ui.getCore().getEventBus().publish("epa", "refreshData");
                 });
         },

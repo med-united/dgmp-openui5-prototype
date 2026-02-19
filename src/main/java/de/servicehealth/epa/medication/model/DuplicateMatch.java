@@ -9,13 +9,13 @@ public class DuplicateMatch {
 
     private boolean isDuplicate;
     private String matchType; // "PZN", "ATC", "ASK"
-    private MedicationPlanEntry existingEntry;
-    private List<MedicationPlanEntry> conflictingEntries;
+    private MedicationRequest existingEntry;
+    private List<MedicationRequest> conflictingEntries;
 
     public DuplicateMatch() {
     }
 
-    public DuplicateMatch(boolean isDuplicate, String matchType, MedicationPlanEntry existingEntry) {
+    public DuplicateMatch(boolean isDuplicate, String matchType, MedicationRequest existingEntry) {
         this.isDuplicate = isDuplicate;
         this.matchType = matchType;
         this.existingEntry = existingEntry;
@@ -37,19 +37,19 @@ public class DuplicateMatch {
         this.matchType = matchType;
     }
 
-    public MedicationPlanEntry getExistingEntry() {
+    public MedicationRequest getExistingEntry() {
         return existingEntry;
     }
 
-    public void setExistingEntry(MedicationPlanEntry existingEntry) {
+    public void setExistingEntry(MedicationRequest existingEntry) {
         this.existingEntry = existingEntry;
     }
 
-    public List<MedicationPlanEntry> getConflictingEntries() {
+    public List<MedicationRequest> getConflictingEntries() {
         return conflictingEntries;
     }
 
-    public void setConflictingEntries(List<MedicationPlanEntry> conflictingEntries) {
+    public void setConflictingEntries(List<MedicationRequest> conflictingEntries) {
         this.conflictingEntries = conflictingEntries;
     }
 }

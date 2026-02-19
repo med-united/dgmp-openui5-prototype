@@ -13,7 +13,7 @@ import java.util.List;
 public class MedicationPlan {
 
     private String kvnr;
-    private List<MedicationPlanEntry> entries = new ArrayList<>();
+    private List<MedicationRequest> entries = new ArrayList<>();
     private int version;
     private Instant lastUpdated;
 
@@ -25,15 +25,15 @@ public class MedicationPlan {
         this.kvnr = kvnr;
     }
 
-    public List<MedicationPlanEntry> getEntries() {
+    public List<MedicationRequest> getEntries() {
         return entries;
     }
 
-    public void setEntries(List<MedicationPlanEntry> entries) {
+    public void setEntries(List<MedicationRequest> entries) {
         this.entries = entries;
     }
 
-    public void addEntry(MedicationPlanEntry entry) {
+    public void addEntry(MedicationRequest entry) {
         this.entries.add(entry);
     }
 
@@ -55,5 +55,15 @@ public class MedicationPlan {
 
     public void setLastUpdated(Instant lastUpdated) {
         this.lastUpdated = lastUpdated;
+    }
+
+    private String chronologyId;
+
+    public String getChronologyId() {
+        return chronologyId;
+    }
+
+    public void setChronologyId(String chronologyId) {
+        this.chronologyId = chronologyId;
     }
 }

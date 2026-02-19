@@ -68,9 +68,9 @@
                                     <!-- Match Info (Only for Root/Prescription) -->
                                     <VBox visible="{= ${app>entryType} === 'prescription' }" class="sapUiTinyMarginTop">
                                         <ObjectStatus
-                                            text="{= ${app>status} === 'LINKED' ? 'Linked' : (${app>status} === 'UNLINKED_UPDATE' ? 'Update available' : 'Not in Plan') }"
-                                            state="{= ${app>status} === 'LINKED' ? 'Success' : (${app>status} === 'UNLINKED_UPDATE' ? 'Warning' : 'Error') }"
-                                            icon="{= ${app>status} === 'LINKED' ? 'sap-icon://chain-link' : (${app>status} === 'UNLINKED_UPDATE' ? 'sap-icon://alert' : 'sap-icon://warning') }"/>
+                                            text="{= ${app>status} === 'LINKED' ? 'Linked' : (${app>status} === 'PROPOSAL_MATCH' ? 'Match found' : (${app>status} === 'UNLINKED_UPDATE' ? 'Update available' : 'Not in Plan')) }"
+                                            state="{= ${app>status} === 'LINKED' ? 'Success' : (${app>status} === 'PROPOSAL_MATCH' ? 'Information' : (${app>status} === 'UNLINKED_UPDATE' ? 'Warning' : 'Error')) }"
+                                            icon="{= ${app>status} === 'LINKED' ? 'sap-icon://chain-link' : (${app>status} === 'PROPOSAL_MATCH' ? 'sap-icon://lightbulb' : (${app>status} === 'UNLINKED_UPDATE' ? 'sap-icon://alert' : 'sap-icon://warning')) }"/>
                                         <Text text="{app>matchReason}" class="sapUiTinyText"/>
                                     </VBox>
                                 </VBox>
@@ -102,12 +102,12 @@
                                         press=".onAddToPlanFromTree"
                                         class="sapUiTinyMarginEnd"/>
                                     
-                                    <!-- Link (UNLINKED_UPDATE) -->
+                                    <!-- Link (UNLINKED_UPDATE or PROPOSAL_MATCH) -->
                                     <Button
                                         text="Link"
                                         icon="sap-icon://chain-link"
                                         type="Emphasized"
-                                        visible="{= ${app>status} === 'UNLINKED_UPDATE' }"
+                                        visible="{= ${app>status} === 'UNLINKED_UPDATE' || ${app>status} === 'PROPOSAL_MATCH' }"
                                         press=".onLinkFromTree"
                                         class="sapUiTinyMarginEnd"/>
                                         
@@ -155,9 +155,15 @@
                     noDataText="No current medication plan">
                     <StandardListItem
                         title="{app>medicationName}"
-                        description="Status: {app>status} | Dosage: {app>dosageText}"
+                        description="Status: {app>status} | Dosage: {= ${app>dosageStructured} || ${app>dosageText} }"
                         icon="sap-icon://pill"
-                        info="{= ${app>linkedEmlIds}.length > 0 ? 'History (' + ${app>linkedEmlIds}.length + ')' : '' }"
+                        info="{
+                            parts: [
+                                {path: 'app>linkedEmlIds'},
+                                {path: 'app>/medicationList/entries'}
+                            ],
+                            formatter: '.formatter.formatHistoryCount'
+                        }"
                         infoState="{= ${app>linkedEmlIds}.length > 0 ? 'Success' : 'None' }"/>
                 </List>
             </VBox>

@@ -61,6 +61,9 @@ sap.ui.define([
             var that = this;
             var oModel = this.getView().getModel("app");
 
+            // Also load Medication List for History Counts
+            this._loadMedicationList(sKvnr);
+
             return fetch("/api/medications/plan/" + sKvnr)
                 .then(function (response) {
                     if (!response.ok) {
@@ -79,6 +82,22 @@ sap.ui.define([
                 });
         },
 
+        _loadMedicationList: function (sKvnr) {
+            var oModel = this.getView().getModel("app");
+            fetch("/api/medications/list/" + sKvnr)
+                .then(function (response) {
+                    if (!response.ok) throw new Error("List not found");
+                    return response.json();
+                })
+                .then(function (medicationList) {
+                    oModel.setProperty("/medicationList", medicationList);
+                })
+                .catch(function (error) {
+                    console.error("Failed to load medication list for history:", error);
+                    oModel.setProperty("/medicationList", { entries: [] });
+                });
+        },
+
         onShowLinkedHistory: function (oEvent) {
             var oSource = oEvent.getSource();
             var oContext = oSource.getBindingContext("app");
@@ -88,25 +107,72 @@ sap.ui.define([
             // Get all eML entries
             var aEmlEntries = oModel.getProperty("/medicationList/entries") || [];
 
-            // Filter to only linked entries
-            var aLinkedEntries = aEmlEntries.filter(function (entry) {
+            // Filter to only linked entries (Prescriptions)
+            var aLinkedPrescriptions = aEmlEntries.filter(function (entry) {
                 return oEmpEntry.linkedEmlIds && oEmpEntry.linkedEmlIds.includes(entry.id);
             });
 
-            if (aLinkedEntries.length === 0) {
+            if (aLinkedPrescriptions.length === 0) {
                 MessageToast.show("No linked history entries found");
                 return;
             }
 
-            // Create message with linked entries
-            var sMessage = "Linked History (" + aLinkedEntries.length + "):\n\n";
-            aLinkedEntries.forEach(function (entry) {
-                sMessage += "• " + entry.medicationName + "\n";
-                sMessage += "  " + entry.entryType + " - " + (entry.authoredDate || "No date") + "\n\n";
+            // Flatten structure: Prescription + its Dispensations
+            var aHistoryEvents = [];
+            aLinkedPrescriptions.forEach(function (presc) {
+                // Add Prescription
+                aHistoryEvents.push({
+                    date: presc.authoredDate,
+                    type: "Prescription",
+                    medication: presc.medicationName,
+                    pzn: presc.pzn,
+                    flag: null,
+                    raw: presc
+                });
+
+                // Add Dispensations
+                if (presc.dispensations && presc.dispensations.length > 0) {
+                    presc.dispensations.forEach(function (disp) {
+                        var sFlag = null;
+                        if (disp.substituted) {
+                            sFlag = "[Substitution]";
+                        } else {
+                            sFlag = "[Refill]";
+                        }
+
+                        aHistoryEvents.push({
+                            date: disp.authoredDate,
+                            type: "Dispense",
+                            medication: disp.medicationName,
+                            pzn: disp.pzn,
+                            flag: sFlag,
+                            raw: disp
+                        });
+                    });
+                }
+            });
+
+            // Sort by Date Descending
+            aHistoryEvents.sort(function (a, b) {
+                return new Date(b.date) - new Date(a.date); // Newest first
+            });
+
+            // Create message
+            var sMessage = "Therapy History (" + aHistoryEvents.length + " events):\n\n";
+            aHistoryEvents.forEach(function (event) {
+                var sDateStr = event.date ? new Date(event.date).toLocaleDateString() : "No date";
+
+                sMessage += "• " + sDateStr + " - " + event.type;
+                if (event.flag) {
+                    sMessage += " " + event.flag;
+                }
+                sMessage += "\n";
+                sMessage += "  " + event.medication + " (PZN: " + event.pzn + ")\n\n";
             });
 
             MessageBox.information(sMessage, {
-                title: "Linked eML Entries for " + oEmpEntry.medicationName
+                title: "Medication History: " + oEmpEntry.medicationName,
+                styleClass: "sapUiResponsivePadding--header sapUiResponsivePadding--content sapUiResponsivePadding--footer"
             });
         },
 

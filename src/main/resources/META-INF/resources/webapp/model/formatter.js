@@ -70,6 +70,33 @@ sap.ui.define([], function () {
          */
         formatEntryType: function (entryType) {
             return entryType === "prescription" ? "Rezept" : "Abgabe";
+        },
+
+        /**
+         * Calculate total history events (Prescriptions + Dispensations)
+         * @param {string[]} linkedEmlIds - Array of linked eML IDs (Prescriptions)
+         * @param {Array} allEmlEntries - Full list of eML entries
+         * @returns {string} Formatted count string e.g. "History (3)"
+         */
+        formatHistoryCount: function (linkedEmlIds, allEmlEntries) {
+            if (!linkedEmlIds || linkedEmlIds.length === 0 || !allEmlEntries) {
+                return "";
+            }
+
+            var count = 0;
+            // Filter linked prescriptions
+            var linkedPrescriptions = allEmlEntries.filter(function (entry) {
+                return linkedEmlIds.includes(entry.id);
+            });
+
+            linkedPrescriptions.forEach(function (presc) {
+                count++; // The prescription itself
+                if (presc.dispensations) {
+                    count += presc.dispensations.length; // Its dispensations
+                }
+            });
+
+            return "History (" + count + ")";
         }
     };
 });

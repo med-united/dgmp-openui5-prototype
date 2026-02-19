@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * Represents a current therapy instruction.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class MedicationPlanEntry extends MedicationEntry {
+public class MedicationRequest extends MedicationEntry {
 
     // Status: active, paused, planned
     private String status;
@@ -25,6 +25,9 @@ public class MedicationPlanEntry extends MedicationEntry {
 
     // IDs of eML entries linked to this therapy
     private java.util.List<String> linkedEmlIds = new java.util.ArrayList<>();
+
+    // New LINK Logic
+    private String medicationPlanIdentifier; // UUID identifying this plan item
 
     public String getStatus() {
         return status;
@@ -66,6 +69,18 @@ public class MedicationPlanEntry extends MedicationEntry {
         this.entrySource = entrySource;
     }
 
+    // Type of entry (e.g. "manual", "dispensed", "prescribed") - Alias/Related to
+    // Source
+    private String entryType;
+
+    public String getEntryType() {
+        return entryType;
+    }
+
+    public void setEntryType(String entryType) {
+        this.entryType = entryType;
+    }
+
     public java.time.Instant getAuthoredDate() {
         return authoredDate;
     }
@@ -74,9 +89,17 @@ public class MedicationPlanEntry extends MedicationEntry {
         this.authoredDate = authoredDate;
     }
 
+    public String getMedicationPlanIdentifier() {
+        return medicationPlanIdentifier;
+    }
+
+    public void setMedicationPlanIdentifier(String medicationPlanIdentifier) {
+        this.medicationPlanIdentifier = medicationPlanIdentifier;
+    }
+
     @Override
     public String toString() {
-        return "MedicationPlanEntry{" +
+        return "MedicationRequest{" +
                 "id='" + getId() + '\'' +
                 ", medicationName='" + getMedicationName() + '\'' +
                 ", status='" + status + '\'' +

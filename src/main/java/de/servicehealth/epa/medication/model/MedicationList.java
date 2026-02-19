@@ -12,7 +12,7 @@ import java.util.List;
 public class MedicationList {
 
     private String kvnr;
-    private List<MedicationListEntry> entries;
+    private List<MedicationStatement> entries;
     private LocalDateTime lastUpdated;
 
     // Constructors
@@ -37,11 +37,11 @@ public class MedicationList {
         this.kvnr = kvnr;
     }
 
-    public List<MedicationListEntry> getEntries() {
+    public List<MedicationStatement> getEntries() {
         return entries;
     }
 
-    public void setEntries(List<MedicationListEntry> entries) {
+    public void setEntries(List<MedicationStatement> entries) {
         this.entries = entries;
     }
 
@@ -61,7 +61,7 @@ public class MedicationList {
      */
     public void sortByAuthoredDateDesc() {
         if (entries != null) {
-            entries.sort(Comparator.comparing(MedicationListEntry::getAuthoredDate).reversed());
+            entries.sort(Comparator.comparing(MedicationStatement::getAuthoredDate).reversed());
         }
     }
 
