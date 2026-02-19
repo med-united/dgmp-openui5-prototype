@@ -1,38 +1,22 @@
 sap.ui.define([
-    "sap/ui/core/mvc/Controller",
+    "epa/controller/BaseController",
     "sap/m/MessageToast",
     "sap/m/MessageBox",
     "epa/model/formatter",
     "sap/ui/core/Fragment"
-], function (Controller, MessageToast, MessageBox, formatter, Fragment) {
+], function (BaseController, MessageToast, MessageBox, formatter, Fragment) {
     "use strict";
 
-    return Controller.extend("epa.controller.MedicationList", {
+    return BaseController.extend("epa.controller.MedicationList", {
         formatter: formatter,
 
         onInit: function () {
             var oEventBus = sap.ui.getCore().getEventBus();
             oEventBus.subscribe("epa", "refreshData", this._onRefreshData, this);
 
-            this.getView().addEventDelegate({
-                onBeforeRendering: function () {
-                    var oModel = this.getView().getModel("app");
-                    if (oModel) {
-                        var sKvnr = oModel.getProperty("/currentKVNR");
-                        if (sKvnr) {
-                            this._loadMedicationList(sKvnr);
-                        }
-
-                        var oBinding = oModel.bindProperty("/currentKVNR");
-                        oBinding.attachChange(function (oEvent) {
-                            var sNewKvnr = oEvent.getSource().getValue();
-                            if (sNewKvnr) {
-                                this._loadMedicationList(sNewKvnr);
-                            }
-                        }, this);
-                    }
-                }
-            }, this);
+            this._attachKvnrListener(function (sKvnr) {
+                this._loadMedicationList(sKvnr);
+            });
         },
 
         _onRefreshData: function () {
@@ -43,36 +27,6 @@ sap.ui.define([
                     this._loadMedicationList(sKvnr);
                 }
             }
-        },
-
-        _loadMedicationList: function (sKvnr) {
-            var that = this;
-            var oModel = this.getView().getModel("app");
-
-            return fetch("/api/medications/list/" + sKvnr)
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error("Medication list not found");
-                    }
-                    return response.json();
-                })
-                .then(function (medicationList) {
-                    oModel.setProperty("/medicationList", medicationList);
-                    oModel.setProperty("/eMLVisible", true);
-
-                    if (medicationList.entries && medicationList.entries.length > 0) {
-                        // MessageToast.show("Loaded " + medicationList.entries.length + " medication entries");
-                    } else {
-                        // MessageToast.show("No medications found in eML");
-                    }
-                    return medicationList;
-                })
-                .catch(function (error) {
-                    console.error("Failed to load medication list:", error);
-                    oModel.setProperty("/medicationList", { entries: [] });
-                    oModel.setProperty("/eMLVisible", true);
-                    return { entries: [] };
-                });
         },
 
         onMedicationRowSelect: function (oEvent) {
@@ -94,8 +48,6 @@ sap.ui.define([
                 return;
             }
 
-            // Optional: check if it's a detail popup or something. 
-            // Previous code showed popup on select
             MessageBox.information(
                 "Medication Details:\n\n" +
                 "Type: " + oMed.entryType + "\n" +
@@ -117,9 +69,6 @@ sap.ui.define([
         },
 
         onLinkPress: function (oEvent) {
-            // Logic to handle linking from the TreeTable directly?
-            // Or was this the simple button in list?
-            // In TreeTable, button press event source is the button.
             var oContext = oEvent.getSource().getBindingContext("app");
             var oEntry = oContext.getObject();
             var that = this;
@@ -202,7 +151,6 @@ sap.ui.define([
                     MessageToast.show("Linked to " + oEmpEntry.medicationName);
 
                     that._loadMedicationList(sKvnr);
-                    // Notify other controllers
                     sap.ui.getCore().getEventBus().publish("epa", "refreshData");
                 })
                 .catch(function (error) {
@@ -226,7 +174,6 @@ sap.ui.define([
                     MessageToast.show("Unlinked");
 
                     that._loadMedicationList(sKvnr);
-                    // Notify others
                     sap.ui.getCore().getEventBus().publish("epa", "refreshData");
                 })
                 .catch(function (error) {

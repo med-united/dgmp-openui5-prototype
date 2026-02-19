@@ -1,14 +1,14 @@
 sap.ui.define([
-    "sap/ui/core/mvc/Controller",
+    "epa/controller/BaseController",
     "sap/m/MessageToast",
     "sap/ui/table/TreeTable",
     "epa/model/formatter",
     "sap/m/ActionSheet",
     "sap/m/Button"
-], function (Controller, MessageToast, TreeTable, formatter, ActionSheet, Button) {
+], function (BaseController, MessageToast, TreeTable, formatter, ActionSheet, Button) {
     "use strict";
 
-    return Controller.extend("epa.controller.Reconciliation", {
+    return BaseController.extend("epa.controller.Reconciliation", {
         formatter: formatter,
 
         formatRowHighlight: function (sStatus) {
@@ -25,29 +25,18 @@ sap.ui.define([
             var oEventBus = sap.ui.getCore().getEventBus();
             oEventBus.subscribe("epa", "refreshData", this._onRefreshData, this);
 
-            this.getView().addEventDelegate({
-                onBeforeRendering: function () {
-                    var oModel = this.getView().getModel("app");
-                    if (oModel) {
-                        var sKvnr = oModel.getProperty("/currentKVNR");
-                        if (sKvnr) {
-                            this._loadReconciliation(sKvnr);
-                        }
-
-                        var oBinding = oModel.bindProperty("/currentKVNR");
-                        oBinding.attachChange(function (oEvent) {
-                            var sNewKvnr = oEvent.getSource().getValue();
-                            if (sNewKvnr) {
-                                this._loadReconciliation(sNewKvnr);
-                            }
-                        }, this);
-                    }
-                }
-            }, this);
+            this._attachKvnrListener(function (sKvnr) {
+                this._loadReconciliation(sKvnr);
+            });
         },
 
         _onRefreshData: function () {
             this._loadReconciliation();
+        },
+
+        _onDialogClose: function () {
+            this._loadReconciliation();
+            sap.ui.getCore().getEventBus().publish("epa", "refreshData");
         },
 
         _loadReconciliation: function (sKvnr) {
@@ -86,53 +75,19 @@ sap.ui.define([
                     return response.json();
                 })
                 .then(function (items) {
-                    // Map backend data to frontend
                     var mappedItems = items.map(function (item) {
                         return Object.assign({}, item, {
-                            // Ensure status is valid or default to ORPHAN_NEW
                             status: item.status || "ORPHAN_NEW",
                             markedAsError: false
                         });
                     });
 
                     oModel.setProperty("/reconciliationItems", mappedItems);
-                    that._applyClientFilters(); // Apply client-side filters like 'Show Linked'
+                    that._applyClientFilters();
                 })
                 .catch(function (error) {
                     console.error("Failed to load reconciliation:", error);
                     oModel.setProperty("/reconciliationItems", []);
-                });
-        },
-
-        _loadMedicationList: function (sKvnr) {
-            var oModel = this.getView().getModel("app");
-            fetch("/api/medications/list/" + sKvnr)
-                .then(function (response) {
-                    if (!response.ok) throw new Error("List not found");
-                    return response.json();
-                })
-                .then(function (medicationList) {
-                    oModel.setProperty("/medicationList", medicationList);
-                })
-                .catch(function (error) {
-                    console.error("Failed to load medication list:", error);
-                    oModel.setProperty("/medicationList", { entries: [] });
-                });
-        },
-
-        _loadMedicationPlan: function (sKvnr) {
-            var oModel = this.getView().getModel("app");
-            fetch("/api/medications/plan/" + sKvnr)
-                .then(function (response) {
-                    if (!response.ok) throw new Error("Plan not found");
-                    return response.json();
-                })
-                .then(function (medicationPlan) {
-                    oModel.setProperty("/medicationPlan", medicationPlan);
-                })
-                .catch(function (error) {
-                    console.error("Failed to load medication plan:", error);
-                    oModel.setProperty("/medicationPlan", { entries: [] });
                 });
         },
 
@@ -153,7 +108,7 @@ sap.ui.define([
             var bShowLinked = oModel.getProperty("/filterShowLinked");
             var aItems = oModel.getProperty("/reconciliationItems") || [];
 
-            var oTable = this.getView().byId("reconciliationTree"); // View ID scoped
+            var oTable = this.getView().byId("reconciliationTree");
 
             if (oTable) {
                 var oBinding = oTable.getBinding("rows");
@@ -163,12 +118,10 @@ sap.ui.define([
                     aFilters.push(new sap.ui.model.Filter("status", sap.ui.model.FilterOperator.NE, "LINKED"));
                 }
 
-                // Filter 'markedAsError'
                 aFilters.push(new sap.ui.model.Filter("markedAsError", sap.ui.model.FilterOperator.NE, true));
 
                 oBinding.filter(aFilters);
 
-                // Update No Data Text
                 var iHiddenLinked = 0;
                 if (!bShowLinked) {
                     iHiddenLinked = aItems.filter(function (item) { return item.status === "LINKED"; }).length;
@@ -184,11 +137,7 @@ sap.ui.define([
 
         onMarkAsError: function (oEvent) {
             var oContext = oEvent.getSource().getBindingContext("app");
-
-            // Soft delete (hide) by setting a flag in the model
             oContext.getModel().setProperty(oContext.getPath() + "/markedAsError", true);
-
-            // Re-apply filters to hide it
             this._applyClientFilters();
             MessageToast.show("Entry marked as error and hidden.");
         },
@@ -239,7 +188,6 @@ sap.ui.define([
         },
 
         _performLink: function (oReconcileItem, oEmpEntry) {
-            // API Call
             var sEmlId = oReconcileItem.id;
             var that = this;
             var oModel = this.getView().getModel("app");
@@ -271,7 +219,7 @@ sap.ui.define([
             var sKvnr = oModel.getProperty("/currentKVNR");
 
             fetch("/api/medications/" + sKvnr + "/unlink-emp?emlId=" + oReconcileItem.id, {
-                method: "POST", // Changed to POST as per new API
+                method: "POST",
                 headers: {
                     "X-Requesting-Organization": "Hospital-A"
                 }
@@ -289,56 +237,9 @@ sap.ui.define([
         },
 
         onAddToPlanFromTree: function (oEvent) {
-            // Logic to take an orphan eML item and create a new Plan entry
-            // This corresponds to opening AddDialog pre-filled with this item
-
             var oContext = oEvent.getSource().getBindingContext("app");
             var oReconcileItem = oContext.getObject();
-
-            // This needs access to the reusable AddDialog.
-            // We can load it here too.
             this._openAddDialog(oReconcileItem);
-        },
-
-        _openAddDialog: function (oPreFillData) {
-            var that = this;
-
-            // Lazy load the AddDialog helper controller or just fragment?
-            // Reuse approach from MedicationPlan controller
-            sap.ui.require(["epa/controller/AddMedicationDialog.controller", "sap/ui/core/Fragment"], function (AddMedicationDialogController, Fragment) {
-                if (!that._pAddMedicationDialog) {
-                    var oDialogController = new AddMedicationDialogController();
-                    that._oAddMedicationController = oDialogController;
-
-                    that._pAddMedicationDialog = Fragment.load({
-                        id: that.getView().getId(),
-                        name: "epa.view.AddMedicationDialog",
-                        controller: oDialogController
-                    }).then(function (oDialog) {
-                        that.getView().addDependent(oDialog);
-                        oDialogController.getView = function () { return that.getView(); };
-                        return oDialog;
-                    });
-                }
-
-                that._pAddMedicationDialog.then(function (oDialog) {
-                    if (that._oAddMedicationController) {
-                        that._oAddMedicationController.clearEditMode();
-                        if (oPreFillData) {
-                            that._oAddMedicationController.fillFields(oPreFillData);
-                        }
-                    }
-
-                    oDialog.open();
-                    oDialog.detachAfterClose(that._onDialogClose, that);
-                    oDialog.attachAfterClose(that._onDialogClose, that);
-                });
-            });
-        },
-
-        _onDialogClose: function () {
-            this._loadReconciliation();
-            sap.ui.getCore().getEventBus().publish("epa", "refreshData");
         }
 
     });

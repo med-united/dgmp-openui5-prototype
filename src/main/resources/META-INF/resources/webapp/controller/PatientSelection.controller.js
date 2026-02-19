@@ -4,12 +4,8 @@ sap.ui.define([
     "sap/m/MessageToast",
     "sap/m/MessageBox",
     "epa/model/formatter",
-    "sap/ui/core/Fragment",
-    "epa/model/AMTSSimulator",
-    "sap/ui/table/TreeTable",
-    "sap/ui/table/Column",
-    "sap/ui/table/RowSettings"
-], function (Controller, JSONModel, MessageToast, MessageBox, formatter, Fragment, AMTSSimulator, TreeTable, Column, RowSettings) {
+    "sap/ui/core/Fragment"
+], function (Controller, JSONModel, MessageToast, MessageBox, formatter, Fragment) {
     "use strict";
 
     return Controller.extend("epa.controller.PatientSelection", {
@@ -61,10 +57,6 @@ sap.ui.define([
         _validateKVNR: function (sKvnr) {
             var kvnrRegex = /^[A-Z0-9]{10}$/;
             return kvnrRegex.test(sKvnr);
-        },
-
-        _addToRecentPatients: function (sKvnr) {
-            // Logic moved inside _searchPatient for updating history
         },
 
         _searchPatient: function (sKvnr) {

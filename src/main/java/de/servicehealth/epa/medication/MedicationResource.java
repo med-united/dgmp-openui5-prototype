@@ -276,8 +276,6 @@ public class MedicationResource {
         }
     }
 
-    // --- New FHIR-compliant Endpoints ---
-
     @POST
     @Path("/{kvnr}/link-emp")
     public Response linkEmp(

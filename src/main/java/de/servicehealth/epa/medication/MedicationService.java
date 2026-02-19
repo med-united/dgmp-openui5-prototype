@@ -41,9 +41,6 @@ public class MedicationService {
     private final List<EPAActivityProvenance> activityLog = new ArrayList<>(); // Audit log
     private final ObjectMapper objectMapper;
 
-    // linkMap and unlinkedSet removed as part of refactoring to use
-    // medicationPlanIdentifier
-
     public MedicationService() {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
@@ -635,8 +632,6 @@ public class MedicationService {
                 return 5;
         }
     }
-
-    // --- New FHIR-compliant Logic ---
 
     public void linkMedicationPlanEntry(String kvnr, String emlId, String empId, String agent) {
         validateOrganizationHeader(agent);

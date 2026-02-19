@@ -199,11 +199,6 @@ sap.ui.define([
                 });
         },
 
-        _mockPZNLookup: function (sPZN) {
-            // Deprecated, using backend
-            return null;
-        },
-
         onSaveMedication: function () {
             var oModel = this._getEntryModel();
             var oData = oModel.getData();
