@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document extends User Story 4 in [spec.md](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/spec.md#L93-L106) with detailed requirements based on the **ePA Medication Service Implementation Guide** for medication therapy harmonization.
+This document extends User Story 4 in [spec.md](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/spec.md#L93-L106) with detailed requirements based on the **ePA Medication Service Implementation Guide** for medication therapy harmonization.
 
 ## Goal
 
@@ -265,6 +265,6 @@ These scenarios SUPERSEDE the original User Story 4 scenarios in spec.md:
 
 ## References
 
-- Original spec: [spec.md User Story 4](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/spec.md#L93-L106)
+- Original spec: [spec.md User Story 4](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/spec.md#L93-L106)
 - Implementation plan: [implementation_plan.md](file:///home/dennis/.gemini/antigravity/brain/885818a5-2e68-43db-a44a-63b9bb6934c0/implementation_plan.md)
-- Current implementation: [index.html lines 1015-1079](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/index.html#L1015-L1079)
+- Current implementation: [index.html lines 1015-1079](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/index.html#L1015-L1079)

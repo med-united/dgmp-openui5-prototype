@@ -32,8 +32,8 @@ sap.ui.require(["epa/controller/AddMedicationDialog.controller"], function (Cont
 ```
 
 **File Reference:**
-- Fixed in: [`index.html:176`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/index.html#L176)
-- Also fixed in: [`index.html:381`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/index.html#L381)
+- Fixed in: [`index.html:176`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/index.html#L176)
+- Also fixed in: [`index.html:381`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/index.html#L381)
 
 ---
 
@@ -74,7 +74,7 @@ var oDialogController = new AddMedicationDialogController();
 oDialogController.getView = function () { return that.getView(); };
 ```
 
-In the fragment controller ([`AddMedicationDialog.controller.js`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/controller/AddMedicationDialog.controller.js)):
+In the fragment controller ([`AddMedicationDialog.controller.js`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/controller/AddMedicationDialog.controller.js)):
 
 ```javascript
 // ❌ Wrong - this.byId() doesn't work in fragment context
@@ -106,9 +106,9 @@ onPZNSearch: function (oEvent) {
 3. **Standard controller instantiation**: Would require a full view instead of fragment
 
 **Files Reference:**
-- Parent view setup: [`index.html:176-213`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/index.html#L176-L213)
-- Fragment controller: [`AddMedicationDialog.controller.js`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/controller/AddMedicationDialog.controller.js)
-- Fragment definition: [`AddMedicationDialog.fragment.xml`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/view/AddMedicationDialog.fragment.xml)
+- Parent view setup: [`index.html:176-213`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/index.html#L176-L213)
+- Fragment controller: [`AddMedicationDialog.controller.js`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/controller/AddMedicationDialog.controller.js)
+- Fragment definition: [`AddMedicationDialog.fragment.xml`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/view/AddMedicationDialog.fragment.xml)
 
 ---
 
@@ -137,10 +137,10 @@ onPZNSearch: function (oEvent) {
 
 ## Related Files
 
-- Main view: [`index.html`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/index.html)
-- Fragment controller: [`AddMedicationDialog.controller.js`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/controller/AddMedicationDialog.controller.js)
-- Fragment XML: [`AddMedicationDialog.fragment.xml`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/view/AddMedicationDialog.fragment.xml)
-- Duplicate dialog controller: [`DuplicateDialog.controller.js`](file:///home/dennis/git/fhir-prototype/src/main/resources/META-INF/resources/webapp/controller/DuplicateDialog.controller.js)
+- Main view: [`index.html`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/index.html)
+- Fragment controller: [`AddMedicationDialog.controller.js`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/controller/AddMedicationDialog.controller.js)
+- Fragment XML: [`AddMedicationDialog.fragment.xml`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/view/AddMedicationDialog.fragment.xml)
+- Duplicate dialog controller: [`DuplicateDialog.controller.js`](file:///home/dennis/git/dgmp-openui5-prototype/src/main/resources/META-INF/resources/webapp/controller/DuplicateDialog.controller.js)
 
 ---
 

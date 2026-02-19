@@ -1,7 +1,7 @@
 # Tasks: ePA Medication Service UI Prototype
 
 **Input**: Design documents from `/specs/001-epa-medication-ui/`  
-**Prerequisites**: [plan.md](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/plan.md), [spec.md](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/spec.md), [research.md](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/research.md), [data-model.md](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/data-model.md), [contracts/](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/contracts/)
+**Prerequisites**: [plan.md](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/plan.md), [spec.md](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/spec.md), [research.md](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/research.md), [data-model.md](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/data-model.md), [contracts/](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/contracts/)
 
 **Organization**: Tasks grouped by user story (US0-US13) for independent implementation and testing
 
@@ -219,7 +219,7 @@ Per plan.md:
 - [x] T102 [P] [US6] Add dosage validation: structured (1-0-1-0) or free text required
 - [x] T103 [US6] Wire "Add Medication" toolbar button to open AddMedicationDialog
 - [x] T104 [US6] Update eMP table to refresh after successful add
-- [x] T104a [P] Fix current JS errors (module loading and fragment controller context - see [ui5-implementation-notes.md](fhir-prototype/specs/001-epa-medication-ui/ui5-implementation-notes.md))
+- [x] T104a [P] Fix current JS errors (module loading and fragment controller context - see [ui5-implementation-notes.md](dgmp-openui5-prototype/specs/001-epa-medication-ui/ui5-implementation-notes.md))
 
 
 **Checkpoint**: Manual medication entry works. Form validates, new entries appear in eMP table.

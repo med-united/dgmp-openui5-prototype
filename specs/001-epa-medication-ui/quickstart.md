@@ -32,7 +32,7 @@
 
 ```bash
 git clone <repository-url>
-cd fhir-prototype
+cd dgmp-openui5-prototype
 git checkout 001-epa-medication-ui
 ```
 
@@ -74,7 +74,7 @@ __  ____  __  _____   ___  __ ____  ______
  --/ __ \/ / / / _ | / _ \/ //_/ / / / __/ 
  -/ /_/ / /_/ / __ |/ , _/ ,< / /_/ /\ \   
 --\___\_\____/_/ |_/_/|_/_/|_|\____/___/   
-INFO  [io.quarkus] (Quarkus Main Thread) fhir-prototype 1.0.0-SNAPSHOT on JVM (powered by Quarkus 3.x.x) started in 2.xxxs. Listening on: http://localhost:8080
+INFO  [io.quarkus] (Quarkus Main Thread) dgmp-openui5-prototype 1.0.0-SNAPSHOT on JVM (powered by Quarkus 3.x.x) started in 2.xxxs. Listening on: http://localhost:8080
 ```
 
 **Backend URLs**:
@@ -346,10 +346,10 @@ When integrating with real TI backend:
 
 ## Additional Resources
 
-- **Specification**: [`specs/001-epa-medication-ui/spec.md`](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/spec.md)
-- **Implementation Plan**: [`specs/001-epa-medication-ui/plan.md`](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/plan.md)
-- **Data Model**: [`specs/001-epa-medication-ui/data-model.md`](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/data-model.md)
-- **API Contracts**: [`specs/001-epa-medication-ui/contracts/openapi.yaml`](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/contracts/openapi.yaml)
+- **Specification**: [`specs/001-epa-medication-ui/spec.md`](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/spec.md)
+- **Implementation Plan**: [`specs/001-epa-medication-ui/plan.md`](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/plan.md)
+- **Data Model**: [`specs/001-epa-medication-ui/data-model.md`](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/data-model.md)
+- **API Contracts**: [`specs/001-epa-medication-ui/contracts/openapi.yaml`](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/contracts/openapi.yaml)
 - **Quarkus Docs**: https://quarkus.io/guides/
 - **OpenUI5 Docs**: https://ui5.sap.com/
 - **ePA Medication Service IG**: https://simplifier.net/epa-medication

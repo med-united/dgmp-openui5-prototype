@@ -1,6 +1,6 @@
 # Implementation Plan: ePA Medication Service UI Prototype
 
-**Branch**: `001-epa-medication-ui` | **Date**: 2026-02-14 | **Spec**: [spec.md](file:///home/dennis/git/fhir-prototype/specs/001-epa-medication-ui/spec.md)
+**Branch**: `001-epa-medication-ui` | **Date**: 2026-02-14 | **Spec**: [spec.md](file:///home/dennis/git/dgmp-openui5-prototype/specs/001-epa-medication-ui/spec.md)
 
 **Input**: Feature specification from `/specs/001-epa-medication-ui/spec.md`
 
