@@ -1,5 +1,6 @@
 package de.servicehealth.epa.medication;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import de.servicehealth.epa.medication.model.DuplicateMatch;
@@ -15,9 +16,15 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 
 import java.util.HashMap;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -210,14 +217,16 @@ public class MedicationService {
     }
 
     /**
-     * Load a single medication list fixture from JSON file
+     * Load a single medication list fixture from FHIR Bundle JSON file.
+     * Parses MedicationStatement (prescriptions) and MedicationDispense (dispensements)
+     * and groups dispenses under their parent prescription via partOf reference.
      */
     private void loadFixture(String kvnr) {
         String filename = "/fixtures/medication-list-" + kvnr + ".json";
         try (InputStream is = getClass().getResourceAsStream(filename)) {
             if (is != null) {
-                MedicationList medicationList = objectMapper.readValue(is, MedicationList.class);
-                // Sort by authored date descending (newest first)
+                JsonNode bundle = objectMapper.readTree(is);
+                MedicationList medicationList = parseFhirMedicationList(bundle, kvnr);
                 medicationList.sortByAuthoredDateDesc();
                 medicationCache.put(kvnr, medicationList);
                 System.out.println("Loaded medication list for KVNR: " + kvnr +
@@ -233,14 +242,15 @@ public class MedicationService {
     }
 
     /**
-     * Load a single medication plan fixture from JSON file
+     * Load a single medication plan fixture from FHIR Bundle JSON file.
+     * Parses MedicationRequest resources into the flat MedicationPlan model.
      */
     private void loadPlanFixture(String kvnr) {
         String filename = "/fixtures/medication-plan-" + kvnr + ".json";
         try (InputStream is = getClass().getResourceAsStream(filename)) {
             if (is != null) {
-                MedicationPlan medicationPlan = objectMapper.readValue(is,
-                        MedicationPlan.class);
+                JsonNode bundle = objectMapper.readTree(is);
+                MedicationPlan medicationPlan = parseFhirMedicationPlan(bundle, kvnr);
                 medicationPlanCache.put(kvnr, medicationPlan);
                 System.out.println("Loaded medication plan for KVNR: " + kvnr +
                         " (" + medicationPlan.getEntryCount() + " entries)");
@@ -250,6 +260,260 @@ public class MedicationService {
         } catch (IOException e) {
             System.err.println("Failed to load medication plan fixture: " + filename);
             e.printStackTrace();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // FHIR Bundle → POJO mapping helpers
+    // -------------------------------------------------------------------------
+
+    private MedicationPlan parseFhirMedicationPlan(JsonNode bundle, String kvnr) {
+        MedicationPlan plan = new MedicationPlan();
+        plan.setKvnr(kvnr);
+        plan.setVersion(1);
+
+        JsonNode entries = bundle.path("entry");
+        if (entries.isArray()) {
+            for (JsonNode entry : entries) {
+                JsonNode resource = entry.path("resource");
+                if ("MedicationRequest".equals(resource.path("resourceType").asText())) {
+                    plan.addEntry(fhirRequestToMedicationRequest(resource));
+                }
+            }
+        }
+        return plan;
+    }
+
+    private MedicationList parseFhirMedicationList(JsonNode bundle, String kvnr) {
+        MedicationList list = new MedicationList(kvnr);
+
+        // First pass: collect prescriptions (MedicationStatement) by id
+        // and dispenses (MedicationDispense) keyed by their partOf reference id
+        LinkedHashMap<String, MedicationStatement> prescriptions = new LinkedHashMap<>();
+        LinkedHashMap<String, MedicationStatement> dispenses = new LinkedHashMap<>();
+
+        JsonNode entries = bundle.path("entry");
+        if (entries.isArray()) {
+            for (JsonNode entry : entries) {
+                JsonNode resource = entry.path("resource");
+                String resourceType = resource.path("resourceType").asText();
+                if ("MedicationStatement".equals(resourceType)) {
+                    MedicationStatement stmt = fhirStatementToMedicationStatement(resource);
+                    prescriptions.put(stmt.getId(), stmt);
+                } else if ("MedicationDispense".equals(resourceType)) {
+                    MedicationStatement disp = fhirDispenseToMedicationStatement(resource);
+                    dispenses.put(disp.getId(), disp);
+                }
+            }
+        }
+
+        // Second pass: attach each dispense to its parent prescription via MedicationStatement.derivedFrom
+        Set<String> attachedDispenseIds = new HashSet<>();
+        if (entries.isArray()) {
+            for (JsonNode entry : entries) {
+                JsonNode resource = entry.path("resource");
+                if ("MedicationStatement".equals(resource.path("resourceType").asText())) {
+                    String stmtId = resource.path("id").asText();
+                    MedicationStatement parent = prescriptions.get(stmtId);
+                    if (parent == null) continue;
+
+                    JsonNode derivedFromArr = resource.path("derivedFrom");
+                    if (derivedFromArr.isArray()) {
+                        for (JsonNode derivedFrom : derivedFromArr) {
+                            String ref = derivedFrom.path("reference").asText();
+                            // ref is "MedicationDispense/<id>"
+                            String dispId = ref.contains("/") ? ref.substring(ref.lastIndexOf('/') + 1) : ref;
+                            MedicationStatement disp = dispenses.get(dispId);
+                            if (disp != null) {
+                                parent.addDispensation(disp);
+                                attachedDispenseIds.add(dispId);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add orphan dispenses (not referenced by any derivedFrom) at top level
+        for (Map.Entry<String, MedicationStatement> e : dispenses.entrySet()) {
+            if (!attachedDispenseIds.contains(e.getKey())) {
+                list.getEntries().add(e.getValue());
+            }
+        }
+
+        list.getEntries().addAll(prescriptions.values());
+        return list;
+    }
+
+    private MedicationRequest fhirRequestToMedicationRequest(JsonNode r) {
+        MedicationRequest req = new MedicationRequest();
+        req.setId(r.path("id").asText(null));
+
+        JsonNode med = r.path("medicationCodeableConcept");
+        req.setMedicationName(med.path("text").asText(null));
+        req.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
+        req.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+
+        req.setStatus(mapFhirStatus(r.path("status").asText("active")));
+
+        JsonNode dosageArr = r.path("dosageInstruction");
+        if (dosageArr.isArray() && dosageArr.size() > 0) {
+            JsonNode dosage = dosageArr.get(0);
+            String text = dosage.path("text").asText(null);
+            req.setDosageText(text);
+            req.setDosageStructured(text);
+            JsonNode addlArr = dosage.path("additionalInstruction");
+            if (addlArr.isArray() && addlArr.size() > 0) {
+                req.setIntakeInstructions(addlArr.get(0).path("text").asText(null));
+            }
+        }
+
+        JsonNode reasonArr = r.path("reasonCode");
+        if (reasonArr.isArray() && reasonArr.size() > 0) {
+            req.setIndication(reasonArr.get(0).path("text").asText(null));
+        }
+
+        JsonNode noteArr = r.path("note");
+        if (noteArr.isArray() && noteArr.size() > 0) {
+            req.setNote(noteArr.get(0).path("text").asText(null));
+        }
+
+        String authoredOn = r.path("authoredOn").asText(null);
+        if (authoredOn != null && !authoredOn.isEmpty()) {
+            req.setAuthoredDate(Instant.parse(authoredOn));
+        }
+
+        req.setMedicationPlanIdentifier(extractIdentifier(r, "https://gematik.de/fhir/sid/emp-identifier"));
+
+        JsonNode statusReason = r.path("statusReason");
+        if (!statusReason.isMissingNode()) {
+            req.setReasonForPause(statusReason.path("text").asText(null));
+        }
+
+        req.setEntrySource(extractExtensionCode(r,
+                "https://epa-medication.fhir.gematik.de/StructureDefinition/epa-medication-entry-source-extension"));
+
+        return req;
+    }
+
+    private MedicationStatement fhirStatementToMedicationStatement(JsonNode r) {
+        MedicationStatement stmt = new MedicationStatement();
+        stmt.setId(r.path("id").asText(null));
+        stmt.setEntryType("prescription");
+
+        JsonNode med = r.path("medicationCodeableConcept");
+        stmt.setMedicationName(med.path("text").asText(null));
+        stmt.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
+        stmt.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+
+        String dateAsserted = r.path("dateAsserted").asText(null);
+        if (dateAsserted != null && !dateAsserted.isEmpty()) {
+            stmt.setAuthoredDate(LocalDateTime.ofInstant(Instant.parse(dateAsserted), ZoneOffset.UTC));
+        }
+
+        JsonNode infoSource = r.path("informationSource");
+        if (!infoSource.isMissingNode()) {
+            stmt.setPrescriberName(infoSource.path("display").asText(null));
+        }
+
+        stmt.setMedicationPlanIdentifier(extractIdentifier(r, "https://gematik.de/fhir/sid/emp-identifier"));
+
+        JsonNode basedOnArr = r.path("basedOn");
+        if (basedOnArr.isArray() && basedOnArr.size() > 0) {
+            stmt.setBasedOn(basedOnArr.get(0).path("reference").asText(null));
+        }
+
+        return stmt;
+    }
+
+    private MedicationStatement fhirDispenseToMedicationStatement(JsonNode r) {
+        MedicationStatement disp = new MedicationStatement();
+        disp.setId(r.path("id").asText(null));
+        disp.setEntryType("dispensement");
+
+        JsonNode med = r.path("medicationCodeableConcept");
+        disp.setMedicationName(med.path("text").asText(null));
+        disp.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
+        disp.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+
+        String whenHandedOver = r.path("whenHandedOver").asText(null);
+        if (whenHandedOver != null && !whenHandedOver.isEmpty()) {
+            disp.setAuthoredDate(LocalDateTime.ofInstant(Instant.parse(whenHandedOver), ZoneOffset.UTC));
+        }
+
+        JsonNode performerArr = r.path("performer");
+        if (performerArr.isArray() && performerArr.size() > 0) {
+            disp.setPharmacyName(performerArr.get(0).path("actor").path("display").asText(null));
+        }
+
+        JsonNode authPrescArr = r.path("authorizingPrescription");
+        if (authPrescArr.isArray() && authPrescArr.size() > 0) {
+            disp.setBasedOnReference(authPrescArr.get(0).path("reference").asText(null));
+        }
+
+        JsonNode subst = r.path("substitution");
+        if (!subst.isMissingNode()) {
+            disp.setSubstituted(subst.path("wasSubstituted").asBoolean(false));
+        }
+
+        return disp;
+    }
+
+    /** Extract the code for a given coding system from a medicationCodeableConcept node. */
+    private String extractCoding(JsonNode concept, String system) {
+        JsonNode codingArr = concept.path("coding");
+        if (codingArr.isArray()) {
+            for (JsonNode coding : codingArr) {
+                if (system.equals(coding.path("system").asText())) {
+                    return coding.path("code").asText(null);
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Extract the value for a given identifier system from a FHIR resource node. */
+    private String extractIdentifier(JsonNode resource, String system) {
+        JsonNode idArr = resource.path("identifier");
+        if (idArr.isArray()) {
+            for (JsonNode id : idArr) {
+                if (system.equals(id.path("system").asText())) {
+                    return id.path("value").asText(null);
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Extract valueCode from a named extension on a FHIR resource. */
+    private String extractExtensionCode(JsonNode resource, String url) {
+        JsonNode extArr = resource.path("extension");
+        if (extArr.isArray()) {
+            for (JsonNode ext : extArr) {
+                if (url.equals(ext.path("url").asText())) {
+                    return ext.path("valueCode").asText(null);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Map FHIR MedicationRequest status to the internal application status.
+     * FHIR: active | on-hold | cancelled | completed | entered-in-error | stopped | draft | unknown
+     * App:  active | paused  | cancelled | active    | (ignored)         | paused  | planned | active
+     */
+    private String mapFhirStatus(String fhirStatus) {
+        switch (fhirStatus) {
+            case "on-hold":
+            case "stopped":
+                return "paused";
+            case "draft":
+                return "planned";
+            case "cancelled":
+                return "cancelled";
+            default:
+                return "active";
         }
     }
 

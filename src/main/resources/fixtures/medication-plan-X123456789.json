@@ -1,85 +1,315 @@
 {
-    "kvnr": "X123456789",
-    "version": 1,
-    "lastUpdated": "2026-02-14T10:00:00Z",
-    "entries": [
+    "resourceType": "Bundle",
+    "id": "medication-plan-X123456789",
+    "type": "searchset",
+    "total": 5,
+    "entry": [
         {
-            "id": "emp-x-001",
-            "status": "active",
-            "pzn": "01476329",
-            "medicationName": "Ramipril-1A Pharma 5mg",
-            "activeIngredient": "Ramipril",
-            "strength": "5mg",
-            "dosageStructured": "1-0-1-0",
-            "intakeInstructions": "morgens mit Wasser",
-            "indication": "Bluthochdruck",
-            "atcCode": "C09AA05",
-            "authoredDate": "2026-01-01T09:00:00Z",
-            "entrySource": "prescription",
-            "medicationPlanIdentifier": "urn:uuid:a1b2c3d4-e5f6-7890-1234-567890abcdef",
-            "note": "Initial Hypertension treatment"
+            "fullUrl": "https://example.org/fhir/MedicationRequest/emp-x-001",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationRequest",
+                "id": "emp-x-001",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "meta": {
+                    "profile": [
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_MedicationRequest|1.1.0"
+                    ]
+                },
+                "status": "active",
+                "intent": "order",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "01476329"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "C09AA05"
+                        }
+                    ],
+                    "text": "Ramipril-1A Pharma 5mg"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "authoredOn": "2026-01-01T09:00:00Z",
+                "identifier": [
+                    {
+                        "system": "https://gematik.de/fhir/sid/emp-identifier",
+                        "value": "urn:uuid:a1b2c3d4-e5f6-7890-1234-567890abcdef"
+                    }
+                ],
+                "dosageInstruction": [
+                    {
+                        "text": "1-0-1-0",
+                        "additionalInstruction": [
+                            {
+                                "text": "morgens mit Wasser"
+                            }
+                        ]
+                    }
+                ],
+                "reasonCode": [
+                    {
+                        "text": "Bluthochdruck"
+                    }
+                ],
+                "note": [
+                    {
+                        "text": "Initial Hypertension treatment"
+                    }
+                ]
+            }
         },
         {
-            "id": "emp-x-002",
-            "status": "active",
-            "pzn": "02468135",
-            "medicationName": "Metformin Lich 1000mg",
-            "activeIngredient": "Metformin",
-            "strength": "1000mg",
-            "dosageStructured": "1-0-1-0",
-            "intakeInstructions": "zu den Mahlzeiten",
-            "indication": "Diabetes mellitus Typ 2",
-            "atcCode": "A10BA02",
-            "authoredDate": "2026-01-15T14:00:00Z",
-            "entrySource": "prescription",
-            "medicationPlanIdentifier": "urn:uuid:12345678-1234-1234-1234-1234567890ab"
+            "fullUrl": "https://example.org/fhir/MedicationRequest/emp-x-002",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationRequest",
+                "id": "emp-x-002",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "meta": {
+                    "profile": [
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_MedicationRequest|1.1.0"
+                    ]
+                },
+                "status": "active",
+                "intent": "order",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "02468135"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "A10BA02"
+                        }
+                    ],
+                    "text": "Metformin Lich 1000mg"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "authoredOn": "2026-01-15T14:00:00Z",
+                "identifier": [
+                    {
+                        "system": "https://gematik.de/fhir/sid/emp-identifier",
+                        "value": "urn:uuid:12345678-1234-1234-1234-1234567890ab"
+                    }
+                ],
+                "dosageInstruction": [
+                    {
+                        "text": "1-0-1-0",
+                        "additionalInstruction": [
+                            {
+                                "text": "zu den Mahlzeiten"
+                            }
+                        ]
+                    }
+                ],
+                "reasonCode": [
+                    {
+                        "text": "Diabetes mellitus Typ 2"
+                    }
+                ]
+            }
         },
         {
-            "id": "emp-x-003",
-            "status": "active",
-            "pzn": "00764973",
-            "medicationName": "Amoxicillin-Ratiopharm 500mg",
-            "activeIngredient": "Amoxicillin",
-            "strength": "500mg",
-            "dosageStructured": "1-0-1-0",
-            "intakeInstructions": "3x täglich 1 Kapsel",
-            "indication": "Atemwegsinfekt",
-            "atcCode": "J01CA04",
-            "authoredDate": "2026-02-08T09:00:00Z",
-            "entrySource": "prescription",
-            "medicationPlanIdentifier": "urn:uuid:6c84fb90-12c4-11e1-840d-7b25c5ee775a"
+            "fullUrl": "https://example.org/fhir/MedicationRequest/emp-x-003",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationRequest",
+                "id": "emp-x-003",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "meta": {
+                    "profile": [
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_MedicationRequest|1.1.0"
+                    ]
+                },
+                "status": "active",
+                "intent": "order",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00764973"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "J01CA04"
+                        }
+                    ],
+                    "text": "Amoxicillin-Ratiopharm 500mg"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "authoredOn": "2026-02-08T09:00:00Z",
+                "identifier": [
+                    {
+                        "system": "https://gematik.de/fhir/sid/emp-identifier",
+                        "value": "urn:uuid:6c84fb90-12c4-11e1-840d-7b25c5ee775a"
+                    }
+                ],
+                "dosageInstruction": [
+                    {
+                        "text": "1-0-1-0",
+                        "additionalInstruction": [
+                            {
+                                "text": "3x täglich 1 Kapsel"
+                            }
+                        ]
+                    }
+                ],
+                "reasonCode": [
+                    {
+                        "text": "Atemwegsinfekt"
+                    }
+                ]
+            }
         },
         {
-            "id": "emp-x-004",
-            "status": "paused",
-            "pzn": "00206123",
-            "medicationName": "Ibuprofen 400mg ADGC",
-            "activeIngredient": "Ibuprofen",
-            "strength": "400mg",
-            "dosageText": "Bei Bedarf 1-2 Tabletten",
-            "intakeInstructions": "max 3x täglich",
-            "indication": "Schmerzen",
-            "atcCode": "M01AE01",
-            "authoredDate": "2026-02-01T10:00:00Z",
-            "entrySource": "manual",
-            "medicationPlanIdentifier": "urn:uuid:manual-entry-ibuprofen-001",
-            "reasonForPause": "Magenbeschwerden",
-            "note": "Patient verträgt es aktuell nicht gut"
+            "fullUrl": "https://example.org/fhir/MedicationRequest/emp-x-004",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationRequest",
+                "id": "emp-x-004",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "meta": {
+                    "profile": [
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_MedicationRequest|1.1.0"
+                    ]
+                },
+                "status": "on-hold",
+                "intent": "order",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00206123"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "M01AE01"
+                        }
+                    ],
+                    "text": "Ibuprofen 400mg ADGC"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "authoredOn": "2026-02-01T10:00:00Z",
+                "identifier": [
+                    {
+                        "system": "https://gematik.de/fhir/sid/emp-identifier",
+                        "value": "urn:uuid:manual-entry-ibuprofen-001"
+                    }
+                ],
+                "dosageInstruction": [
+                    {
+                        "text": "Bei Bedarf 1-2 Tabletten",
+                        "additionalInstruction": [
+                            {
+                                "text": "max 3x täglich"
+                            }
+                        ]
+                    }
+                ],
+                "reasonCode": [
+                    {
+                        "text": "Schmerzen"
+                    }
+                ],
+                "note": [
+                    {
+                        "text": "Patient verträgt es aktuell nicht gut"
+                    }
+                ],
+                "statusReason": {
+                    "text": "Magenbeschwerden"
+                }
+            }
         },
         {
-            "id": "emp-x-005",
-            "status": "planned",
-            "pzn": "00037833",
-            "medicationName": "Aspirin 500mg überzogene Tabletten",
-            "activeIngredient": "Acetylsalicylsäure",
-            "strength": "100mg",
-            "dosageStructured": "1-0-0-0",
-            "intakeInstructions": "morgens nüchtern",
-            "indication": "Herzinfarktprophylaxe",
-            "atcCode": "B01AC06",
-            "authoredDate": "2026-02-10T11:00:00Z",
-            "entrySource": "scanned_document",
-            "note": "Beginn nach nächstem Kardiologen-Termin"
+            "fullUrl": "https://example.org/fhir/MedicationRequest/emp-x-005",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationRequest",
+                "id": "emp-x-005",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "meta": {
+                    "profile": [
+                        "https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_MedicationRequest|1.1.0"
+                    ]
+                },
+                "status": "draft",
+                "intent": "order",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00037833"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "B01AC06"
+                        }
+                    ],
+                    "text": "Aspirin 500mg überzogene Tabletten"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "authoredOn": "2026-02-10T11:00:00Z",
+                "dosageInstruction": [
+                    {
+                        "text": "1-0-0-0",
+                        "additionalInstruction": [
+                            {
+                                "text": "morgens nüchtern"
+                            }
+                        ]
+                    }
+                ],
+                "reasonCode": [
+                    {
+                        "text": "Herzinfarktprophylaxe"
+                    }
+                ],
+                "note": [
+                    {
+                        "text": "Beginn nach nächstem Kardiologen-Termin"
+                    }
+                ]
+            }
         }
     ]
 }

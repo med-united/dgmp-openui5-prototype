@@ -1,23 +1,98 @@
-[
-    {
-        "kvnr": "X123456789",
-        "firstName": "Erika",
-        "lastName": "Mustermann",
-        "dateOfBirth": "1975-08-12",
-        "insuranceType": "GKV"
-    },
-    {
-        "kvnr": "Y987654321",
-        "firstName": "Max",
-        "lastName": "Beispiel",
-        "dateOfBirth": "1989-03-25",
-        "insuranceType": "GKV"
-    },
-    {
-        "kvnr": "Z555111222",
-        "firstName": "Anna",
-        "lastName": "Test",
-        "dateOfBirth": "1992-11-05",
-        "insuranceType": "PKV"
-    }
-]
+{
+    "resourceType": "Bundle",
+    "id": "patients",
+    "type": "searchset",
+    "total": 3,
+    "entry": [
+        {
+            "fullUrl": "https://example.org/fhir/Patient/X123456789",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "Patient",
+                "id": "X123456789",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "identifier": [
+                    {
+                        "system": "http://fhir.de/sid/gkv/kvid-10",
+                        "value": "X123456789"
+                    }
+                ],
+                "name": [
+                    {
+                        "use": "official",
+                        "family": "Mustermann",
+                        "given": [
+                            "Erika"
+                        ]
+                    }
+                ],
+                "birthDate": "1975-08-12"
+            }
+        },
+        {
+            "fullUrl": "https://example.org/fhir/Patient/Y987654321",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "Patient",
+                "id": "Y987654321",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "identifier": [
+                    {
+                        "system": "http://fhir.de/sid/gkv/kvid-10",
+                        "value": "Y987654321"
+                    }
+                ],
+                "name": [
+                    {
+                        "use": "official",
+                        "family": "Beispiel",
+                        "given": [
+                            "Max"
+                        ]
+                    }
+                ],
+                "birthDate": "1989-03-25"
+            }
+        },
+        {
+            "fullUrl": "https://example.org/fhir/Patient/Z555111222",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "Patient",
+                "id": "Z555111222",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "identifier": [
+                    {
+                        "system": "http://fhir.de/sid/pkv/kvid-10",
+                        "value": "Z555111222"
+                    }
+                ],
+                "name": [
+                    {
+                        "use": "official",
+                        "family": "Test",
+                        "given": [
+                            "Anna"
+                        ]
+                    }
+                ],
+                "birthDate": "1992-11-05"
+            }
+        }
+    ]
+}

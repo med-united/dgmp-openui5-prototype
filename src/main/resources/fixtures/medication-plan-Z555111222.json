@@ -1,6 +1,6 @@
 {
-    "kvnr": "Z555111222",
-    "version": 0,
-    "lastUpdated": "2026-01-01T00:00:00Z",
-    "entries": []
+    "resourceType": "Bundle",
+    "id": "medication-plan-Z555111222",
+    "type": "searchset",
+    "total": 0
 }

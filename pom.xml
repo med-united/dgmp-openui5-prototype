@@ -130,5 +130,80 @@
                 <quarkus.package.type>native</quarkus.package.type>
             </properties>
         </profile>
+
+        <!--
+            FHIR fixture validation profile.
+            Usage:
+              1. Download the validator:  bash tools/download-validator.sh
+              2. Run validation:          mvn validate -Pfhir-validate
+
+            The validator JAR is excluded from git via .gitignore (*.jar rule).
+            IGs are downloaded automatically by the validator on first run (~/.fhir/packages cache).
+        -->
+        <profile>
+            <id>fhir-validate</id>
+            <properties>
+                <fhir.validator.jar>${project.basedir}/tools/validator_cli.jar</fhir.validator.jar>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>fhir-validate-fixtures</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>java</executable>
+                                    <arguments>
+                                        <argument>-jar</argument>
+                                        <argument>${fhir.validator.jar}</argument>
+                                        <argument>-version</argument>
+                                        <argument>4.0.1</argument>
+                                        <argument>-locale</argument>
+                                        <argument>de</argument>
+                                        <argument>-jurisdiction</argument>
+                                        <argument>urn:iso:std:iso:3166#DE</argument>
+                                        <!-- HL7 DE base: PZN, KVNR and other German code systems -->
+                                        <argument>-ig</argument>
+                                        <argument>de.basisprofil.r4#1.5.0</argument>
+                                        <!-- KBV basis: dosage units (KBV_CS_SFHIR_BMP_DOSIEREINHEIT), drug forms -->
+                                        <argument>-ig</argument>
+                                        <argument>kbv.basis#1.6.0</argument>
+                                        <!-- KBV eRP: KBV_PR_ERP_MedicationRequest profile used in eMP fixtures -->
+                                        <argument>-ig</argument>
+                                        <argument>kbv.ita.erp#1.1.2</argument>
+                                        <!-- GEM ERP: workflow definitions for e-prescription resources -->
+                                        <argument>-ig</argument>
+                                        <argument>de.gematik.erezept-workflow.r4#1.2.0</argument>
+                                        <!-- TI Terminology: mandatory per A_27447, value sets for ePA services -->
+                                        <argument>-ig</argument>
+                                        <argument>de.gematik.terminology#1.0.7</argument>
+                                        <!-- ePA Basic: epa-activity-provenance and other base profiles -->
+                                        <argument>-ig</argument>
+                                        <argument>de.gematik.epa#1.2.0</argument>
+                                        <!-- ePA Medication Service 1.3.0 (1.3.2 is unpublished and loads 0 resources) -->
+                                        <argument>-ig</argument>
+                                        <argument>de.gematik.epa.medication#1.3.0</argument>
+                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-plan-X123456789.json</argument>
+                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-plan-Y987654321.json</argument>
+                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-plan-Z555111222.json</argument>
+                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-list-X123456789.json</argument>
+                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-list-Y987654321.json</argument>
+                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-list-Z555111222.json</argument>
+                                        <argument>${project.basedir}/src/main/resources/fixtures/patients.json</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>

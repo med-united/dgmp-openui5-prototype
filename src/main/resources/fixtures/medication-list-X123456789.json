@@ -1,152 +1,477 @@
 {
-    "kvnr": "X123456789",
-    "entries": [
+    "resourceType": "Bundle",
+    "id": "medication-list-X123456789",
+    "type": "searchset",
+    "total": 10,
+    "entry": [
         {
-            "id": "presc-001",
-            "entryType": "prescription",
-            "medicationName": "Amoxicillin 500mg Kapseln",
-            "pzn": "00764973",
-            "activeIngredient": "Amoxicillin",
-            "strength": "500mg",
-            "atcCode": "J01CA04",
-            "dosageForm": "Kapseln",
-            "prescriberName": "Dr. Maria Müller",
-            "authoredDate": "2026-02-08T10:30:00",
-            "medicationPlanIdentifier": "urn:uuid:6c84fb90-12c4-11e1-840d-7b25c5ee775a",
-            "basedOn": "MedicationRequest/emp-x-003",
-            "dispensations": [
-                {
-                    "id": "disp-001",
-                    "entryType": "dispensement",
-                    "medicationName": "Amoxicillin 500mg Kapseln",
-                    "pzn": "00764973",
-                    "activeIngredient": "Amoxicillin",
-                    "strength": "500mg",
-                    "atcCode": "J01CA04",
-                    "dosageForm": "Kapseln",
-                    "pharmacyName": "Stadt-Apotheke",
-                    "authoredDate": "2026-02-08T14:15:00",
-                    "basedOnReference": "presc-001",
-                    "substituted": false
-                }
-            ]
+            "fullUrl": "https://example.org/fhir/MedicationStatement/presc-001",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationStatement",
+                "id": "presc-001",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "active",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00764973"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "J01CA04"
+                        }
+                    ],
+                    "text": "Amoxicillin 500mg Kapseln"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "dateAsserted": "2026-02-08T10:30:00Z",
+                "informationSource": {
+                    "display": "Dr. Maria Müller"
+                },
+                "identifier": [
+                    {
+                        "system": "https://gematik.de/fhir/sid/emp-identifier",
+                        "value": "urn:uuid:6c84fb90-12c4-11e1-840d-7b25c5ee775a"
+                    }
+                ],
+                "basedOn": [
+                    {
+                        "reference": "MedicationRequest/emp-x-003",
+                        "extension": [
+                            {
+                                "url": "https://gematik.de/fhir/epa-medication/StructureDefinition/is-emp-extension",
+                                "valueBoolean": true
+                            }
+                        ]
+                    }
+                ],
+                "derivedFrom": [
+                    {
+                        "reference": "MedicationDispense/disp-001"
+                    }
+                ]
+            }
         },
         {
-            "id": "presc-002",
-            "entryType": "prescription",
-            "medicationName": "Ramipril-Ratiopharm 5mg",
-            "pzn": "00885967",
-            "activeIngredient": "Ramipril",
-            "strength": "5mg",
-            "atcCode": "C09AA05",
-            "dosageForm": "Tabletten",
-            "prescriberName": "Dr. Hans Schmidt",
-            "authoredDate": "2026-02-05T11:00:00",
-            "dispensations": [
-                {
-                    "id": "disp-002",
-                    "entryType": "dispensement",
-                    "medicationName": "Ramipril-Ratiopharm 5mg",
-                    "pzn": "00885967",
-                    "activeIngredient": "Ramipril",
-                    "strength": "5mg",
-                    "atcCode": "C09AA05",
-                    "dosageForm": "Tabletten",
-                    "pharmacyName": "Apotheke am Markt",
-                    "authoredDate": "2026-02-05T15:30:00",
-                    "basedOnReference": "presc-002",
-                    "substituted": false,
-                    "originalPrescribedPzn": "00885967"
+            "fullUrl": "https://example.org/fhir/MedicationDispense/disp-001",
+            "search": {
+                "mode": "include"
+            },
+            "resource": {
+                "resourceType": "MedicationDispense",
+                "id": "disp-001",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "completed",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00764973"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "J01CA04"
+                        }
+                    ],
+                    "text": "Amoxicillin 500mg Kapseln"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "whenHandedOver": "2026-02-08T14:15:00Z",
+                "performer": [
+                    {
+                        "actor": {
+                            "display": "Stadt-Apotheke"
+                        }
+                    }
+                ],
+                "authorizingPrescription": [
+                    {
+                        "reference": "MedicationRequest/emp-x-003"
+                    }
+                ],
+                "substitution": {
+                    "wasSubstituted": false
                 }
-            ]
+            }
         },
         {
-            "id": "presc-003",
-            "entryType": "prescription",
-            "medicationName": "Paracetamol-Ratiopharm 500 MG",
-            "pzn": "01318813",
-            "activeIngredient": "Paracetamol",
-            "strength": "500mg",
-            "atcCode": "N02BE01",
-            "dosageForm": "Tabletten",
-            "prescriberName": "Dr. Anna Weber",
-            "authoredDate": "2026-01-25T09:00:00",
-            "dispensations": [
-                {
-                    "id": "disp-003",
-                    "entryType": "dispensement",
-                    "medicationName": "Paracetamol-Ratiopharm 500 MG",
-                    "pzn": "01318813",
-                    "activeIngredient": "Paracetamol",
-                    "strength": "500mg",
-                    "atcCode": "N02BE01",
-                    "dosageForm": "Tabletten",
-                    "pharmacyName": "Rosen-Apotheke",
-                    "authoredDate": "2026-01-25T13:45:00",
-                    "basedOnReference": "presc-003",
-                    "substituted": false
-                }
-            ]
+            "fullUrl": "https://example.org/fhir/MedicationStatement/presc-002",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationStatement",
+                "id": "presc-002",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "active",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00885967"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "C09AA05"
+                        }
+                    ],
+                    "text": "Ramipril-Ratiopharm 5mg"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "dateAsserted": "2026-02-05T11:00:00Z",
+                "informationSource": {
+                    "display": "Dr. Hans Schmidt"
+                },
+                "derivedFrom": [
+                    {
+                        "reference": "MedicationDispense/disp-002"
+                    }
+                ]
+            }
         },
         {
-            "id": "presc-004",
-            "entryType": "prescription",
-            "medicationName": "Metformin Lich 1000mg",
-            "pzn": "02468135",
-            "activeIngredient": "Metformin",
-            "strength": "1000mg",
-            "atcCode": "A10BA02",
-            "dosageForm": "Filmtabletten",
-            "prescriberName": "Dr. Klaus Diabetologe",
-            "authoredDate": "2026-01-20T09:00:00",
-            "medicationPlanIdentifier": "urn:uuid:12345678-1234-1234-1234-1234567890ab",
-            "basedOn": "MedicationRequest/emp-x-002",
-            "dispensations": [
-                {
-                    "id": "disp-004",
-                    "entryType": "dispensement",
-                    "medicationName": "Metformin Lich 1000mg",
-                    "pzn": "02468135",
-                    "activeIngredient": "Metformin",
-                    "strength": "1000mg",
-                    "atcCode": "A10BA02",
-                    "dosageForm": "Filmtabletten",
-                    "pharmacyName": "Rosen-Apotheke",
-                    "authoredDate": "2026-01-21T16:20:00",
-                    "basedOnReference": "presc-004",
-                    "substituted": false,
-                    "originalPrescribedPzn": "02468135"
+            "fullUrl": "https://example.org/fhir/MedicationDispense/disp-002",
+            "search": {
+                "mode": "include"
+            },
+            "resource": {
+                "resourceType": "MedicationDispense",
+                "id": "disp-002",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "completed",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00885967"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "C09AA05"
+                        }
+                    ],
+                    "text": "Ramipril-Ratiopharm 5mg"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "whenHandedOver": "2026-02-05T15:30:00Z",
+                "performer": [
+                    {
+                        "actor": {
+                            "display": "Apotheke am Markt"
+                        }
+                    }
+                ],
+                "authorizingPrescription": [
+                    {
+                        "reference": "MedicationRequest/emp-x-001"
+                    }
+                ],
+                "substitution": {
+                    "wasSubstituted": false
                 }
-            ]
+            }
         },
         {
-            "id": "presc-005",
-            "entryType": "prescription",
-            "medicationName": "Ibuprofen 400mg ADGC",
-            "pzn": "00206123",
-            "activeIngredient": "Ibuprofen",
-            "strength": "400mg",
-            "atcCode": "M01AE01",
-            "dosageForm": "Filmtabletten",
-            "prescriberName": "Dr. Hans Schmidt",
-            "authoredDate": "2026-02-10T09:30:00",
-            "dispensations": [
-                {
-                    "id": "disp-005",
-                    "entryType": "dispensement",
-                    "medicationName": "Ibuprofen 400mg ADGC",
-                    "pzn": "00206123",
-                    "activeIngredient": "Ibuprofen",
-                    "strength": "400mg",
-                    "atcCode": "M01AE01",
-                    "dosageForm": "Filmtabletten",
-                    "pharmacyName": "Stadt-Apotheke",
-                    "authoredDate": "2026-02-10T14:30:00",
-                    "basedOnReference": "presc-005",
-                    "substituted": false
+            "fullUrl": "https://example.org/fhir/MedicationStatement/presc-003",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationStatement",
+                "id": "presc-003",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "active",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "01318813"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "N02BE01"
+                        }
+                    ],
+                    "text": "Paracetamol-Ratiopharm 500 MG"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "dateAsserted": "2026-01-25T09:00:00Z",
+                "informationSource": {
+                    "display": "Dr. Anna Weber"
+                },
+                "derivedFrom": [
+                    {
+                        "reference": "MedicationDispense/disp-003"
+                    }
+                ]
+            }
+        },
+        {
+            "fullUrl": "https://example.org/fhir/MedicationDispense/disp-003",
+            "search": {
+                "mode": "include"
+            },
+            "resource": {
+                "resourceType": "MedicationDispense",
+                "id": "disp-003",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "completed",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "01318813"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "N02BE01"
+                        }
+                    ],
+                    "text": "Paracetamol-Ratiopharm 500 MG"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "whenHandedOver": "2026-01-25T13:45:00Z",
+                "performer": [
+                    {
+                        "actor": {
+                            "display": "Rosen-Apotheke"
+                        }
+                    }
+                ],
+                "authorizingPrescription": [
+                    {
+                        "reference": "MedicationRequest/emp-x-003"
+                    }
+                ],
+                "substitution": {
+                    "wasSubstituted": false
                 }
-            ]
+            }
+        },
+        {
+            "fullUrl": "https://example.org/fhir/MedicationStatement/presc-004",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationStatement",
+                "id": "presc-004",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "active",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "02468135"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "A10BA02"
+                        }
+                    ],
+                    "text": "Metformin Lich 1000mg"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "dateAsserted": "2026-01-20T09:00:00Z",
+                "informationSource": {
+                    "display": "Dr. Klaus Diabetologe"
+                },
+                "identifier": [
+                    {
+                        "system": "https://gematik.de/fhir/sid/emp-identifier",
+                        "value": "urn:uuid:12345678-1234-1234-1234-1234567890ab"
+                    }
+                ],
+                "basedOn": [
+                    {
+                        "reference": "MedicationRequest/emp-x-002",
+                        "extension": [
+                            {
+                                "url": "https://gematik.de/fhir/epa-medication/StructureDefinition/is-emp-extension",
+                                "valueBoolean": true
+                            }
+                        ]
+                    }
+                ],
+                "derivedFrom": [
+                    {
+                        "reference": "MedicationDispense/disp-004"
+                    }
+                ]
+            }
+        },
+        {
+            "fullUrl": "https://example.org/fhir/MedicationDispense/disp-004",
+            "search": {
+                "mode": "include"
+            },
+            "resource": {
+                "resourceType": "MedicationDispense",
+                "id": "disp-004",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "completed",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "02468135"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "A10BA02"
+                        }
+                    ],
+                    "text": "Metformin Lich 1000mg"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "whenHandedOver": "2026-01-21T16:20:00Z",
+                "performer": [
+                    {
+                        "actor": {
+                            "display": "Rosen-Apotheke"
+                        }
+                    }
+                ],
+                "authorizingPrescription": [
+                    {
+                        "reference": "MedicationRequest/emp-x-002"
+                    }
+                ],
+                "substitution": {
+                    "wasSubstituted": false
+                }
+            }
+        },
+        {
+            "fullUrl": "https://example.org/fhir/MedicationStatement/presc-005",
+            "search": {
+                "mode": "match"
+            },
+            "resource": {
+                "resourceType": "MedicationStatement",
+                "id": "presc-005",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "active",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00206123"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "M01AE01"
+                        }
+                    ],
+                    "text": "Ibuprofen 400mg ADGC"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "dateAsserted": "2026-02-10T09:30:00Z",
+                "informationSource": {
+                    "display": "Dr. Hans Schmidt"
+                },
+                "derivedFrom": [
+                    {
+                        "reference": "MedicationDispense/disp-005"
+                    }
+                ]
+            }
+        },
+        {
+            "fullUrl": "https://example.org/fhir/MedicationDispense/disp-005",
+            "search": {
+                "mode": "include"
+            },
+            "resource": {
+                "resourceType": "MedicationDispense",
+                "id": "disp-005",
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
+                },
+                "status": "completed",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "system": "http://fhir.de/CodeSystem/ifa/pzn",
+                            "code": "00206123"
+                        },
+                        {
+                            "system": "http://www.whocc.no/atc",
+                            "code": "M01AE01"
+                        }
+                    ],
+                    "text": "Ibuprofen 400mg ADGC"
+                },
+                "subject": {
+                    "reference": "Patient/X123456789"
+                },
+                "whenHandedOver": "2026-02-10T14:30:00Z",
+                "performer": [
+                    {
+                        "actor": {
+                            "display": "Stadt-Apotheke"
+                        }
+                    }
+                ],
+                "authorizingPrescription": [
+                    {
+                        "reference": "MedicationRequest/emp-x-004"
+                    }
+                ],
+                "substitution": {
+                    "wasSubstituted": false
+                }
+            }
         }
-    ],
-    "lastUpdated": "2026-02-10T14:30:00"
+    ]
 }
