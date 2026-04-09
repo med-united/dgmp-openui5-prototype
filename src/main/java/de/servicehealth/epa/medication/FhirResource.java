@@ -5,27 +5,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import de.servicehealth.epa.medication.model.DuplicateMatch;
-import de.servicehealth.epa.medication.model.MedicationRequest;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * FHIR REST endpoints at /fhir/ base URL (Phase 2).
+ * FHIR REST endpoints at /fhir/ base URL.
  *
  * Supported operations:
- *   GET/POST  /fhir/MedicationRequest/_search   (task 3.1)
- *   GET/POST  /fhir/MedicationDispense/_search  (task 3.2)
- *   GET/POST  /fhir/Patient/_search             (task 3.3)
- *   GET       /fhir/Medication                  (task 3.4)
- *   POST      /fhir                             batch (task 3.5)
- *   POST      /fhir/MedicationStatement/{id}/$link-emp   (task 3.5a)
- *   POST      /fhir/MedicationStatement/{id}/$unlink-emp (task 3.5b)
+ *   GET/POST  /fhir/Patient/_search
+ *   GET/POST  /fhir/MedicationRequest/_search
+ *   GET/POST  /fhir/MedicationDispense/_search
+ *   GET       /fhir/Medication?name:contains=
+ *   POST      /fhir                             batch (PUT / DELETE MedicationRequest)
+ *   POST      /fhir/MedicationStatement/{id}/$link-emp
+ *   POST      /fhir/MedicationStatement/{id}/$unlink-emp
  */
 @Path("/fhir")
 @Produces({"application/fhir+json", MediaType.APPLICATION_JSON})
@@ -38,7 +36,7 @@ public class FhirResource {
     MedicationService medicationService;
 
     // -------------------------------------------------------------------------
-    // Task 3.3 — Patient search
+    // Patient search
     // -------------------------------------------------------------------------
 
     @GET
@@ -63,7 +61,6 @@ public class FhirResource {
             return Response.ok(rawBundle.toString()).type(FHIR_CONTENT_TYPE).build();
         }
 
-        // Filter to matching patient(s)
         ObjectMapper om = medicationService.getObjectMapper();
         ObjectNode filtered = om.createObjectNode()
                 .put("resourceType", "Bundle")
@@ -86,7 +83,7 @@ public class FhirResource {
     }
 
     // -------------------------------------------------------------------------
-    // Task 3.1 — MedicationRequest search (eMP)
+    // MedicationRequest search (eMP)
     // -------------------------------------------------------------------------
 
     @GET
@@ -106,8 +103,7 @@ public class FhirResource {
         if (patient == null || patient.isBlank()) {
             return badRequest("Missing required parameter: patient");
         }
-        String kvnr = extractKvnr(patient);
-        JsonNode bundle = medicationService.getRawMedicationPlanBundle(kvnr).orElse(null);
+        JsonNode bundle = medicationService.getRawMedicationPlanBundle(extractKvnr(patient)).orElse(null);
         if (bundle == null) {
             return Response.ok(emptyBundle()).type(FHIR_CONTENT_TYPE).build();
         }
@@ -115,7 +111,7 @@ public class FhirResource {
     }
 
     // -------------------------------------------------------------------------
-    // Task 3.2 — MedicationDispense search (eML)
+    // MedicationDispense search (eML)
     // -------------------------------------------------------------------------
 
     @GET
@@ -137,48 +133,37 @@ public class FhirResource {
         return serveMedicationDispenseBundle(patient, includes, revincludes);
     }
 
-    private Response serveMedicationDispenseBundle(String patient, List<String> includes,
-            List<String> revincludes) {
+    private Response serveMedicationDispenseBundle(String patient, List<String> includes, List<String> revincludes) {
         if (patient == null || patient.isBlank()) {
             return badRequest("Missing required parameter: patient");
         }
-        String kvnr = extractKvnr(patient);
-        JsonNode rawBundle = medicationService.getRawMedicationListBundle(kvnr).orElse(null);
+        JsonNode rawBundle = medicationService.getRawMedicationListBundle(extractKvnr(patient)).orElse(null);
         if (rawBundle == null) {
             return Response.ok(emptyBundle()).type(FHIR_CONTENT_TYPE).build();
         }
 
         boolean includeReq = includes != null && includes.contains("MedicationDispense:medication-request");
-        boolean includeStmt = revincludes != null && revincludes.stream()
-                .anyMatch(r -> r.contains("MedicationStatement"));
+        boolean includeStmt = revincludes != null && revincludes.stream().anyMatch(r -> r.contains("MedicationStatement"));
 
-        // If all includes requested, return the full bundle as-is
         if (includeReq && includeStmt) {
             return Response.ok(rawBundle.toString()).type(FHIR_CONTENT_TYPE).build();
         }
 
-        // Otherwise filter entries
         ObjectMapper om = medicationService.getObjectMapper();
-        ObjectNode filtered = om.createObjectNode()
-                .put("resourceType", "Bundle")
-                .put("type", "searchset");
+        ObjectNode filtered = om.createObjectNode().put("resourceType", "Bundle").put("type", "searchset");
         ArrayNode entries = om.createArrayNode();
 
         for (JsonNode entry : rawBundle.path("entry")) {
             JsonNode res = entry.path("resource");
             String rType = res.path("resourceType").asText();
-            String mode = entry.path("search").path("mode").asText();
 
-            if ("MedicationDispense".equals(rType)) {
-                entries.add(entry); // always included (match entries)
-            } else if ("Medication".equals(rType)) {
-                entries.add(entry); // always included
+            if ("MedicationDispense".equals(rType) || "Medication".equals(rType)) {
+                entries.add(entry);
             } else if ("MedicationRequest".equals(rType) && includeReq) {
                 entries.add(entry);
             } else if ("MedicationStatement".equals(rType) && includeStmt) {
                 entries.add(entry);
             }
-            // Skip resources not requested
         }
 
         long total = 0;
@@ -191,7 +176,7 @@ public class FhirResource {
     }
 
     // -------------------------------------------------------------------------
-    // Task 3.4 — Medication name search
+    // Medication name search
     // -------------------------------------------------------------------------
 
     @GET
@@ -200,12 +185,12 @@ public class FhirResource {
         if (nameContains == null || nameContains.length() < 2) {
             return badRequest("name:contains must be at least 2 characters");
         }
-        JsonNode bundle = medicationService.buildMedicationSearchBundle(nameContains);
-        return Response.ok(bundle.toString()).type(FHIR_CONTENT_TYPE).build();
+        return Response.ok(medicationService.buildMedicationSearchBundle(nameContains).toString())
+                .type(FHIR_CONTENT_TYPE).build();
     }
 
     // -------------------------------------------------------------------------
-    // Task 3.5 — Batch endpoint
+    // Batch endpoint (PUT / DELETE MedicationRequest)
     // -------------------------------------------------------------------------
 
     @POST
@@ -214,7 +199,6 @@ public class FhirResource {
             @HeaderParam("X-Requesting-Organization") String agent,
             String body) {
 
-        // Task 3.6: Validate X-Requesting-Organization header
         Response headerError = validateOrgHeader(agent);
         if (headerError != null) return headerError;
 
@@ -236,8 +220,7 @@ public class FhirResource {
         ArrayNode responseEntries = om.createArrayNode();
 
         for (JsonNode batchEntry : batchBundle.path("entry")) {
-            ObjectNode responseEntry = processBatchEntry(batchEntry, batchBundle, agent, om);
-            responseEntries.add(responseEntry);
+            responseEntries.add(processBatchEntry(batchEntry, batchBundle, agent, om));
         }
 
         responseBundle.set("entry", responseEntries);
@@ -255,28 +238,24 @@ public class FhirResource {
             return processBatchDelete(url, agent, om);
         } else {
             return batchResponseEntry("400 Bad Request",
-                    operationOutcome(om, "error", "not-supported", "Unsupported batch operation: " + method + " " + url),
-                    om);
+                    operationOutcome(om, "error", "not-supported", "Unsupported batch operation: " + method + " " + url), om);
         }
     }
 
-    private ObjectNode processBatchPut(JsonNode batchEntry, JsonNode batchBundle, String agent, ObjectMapper om,
-            String ifMatch) {
+    private ObjectNode processBatchPut(JsonNode batchEntry, JsonNode batchBundle, String agent, ObjectMapper om, String ifMatch) {
         JsonNode resource = batchEntry.path("resource");
         if (resource.isMissingNode()) {
             return batchResponseEntry("400 Bad Request",
                     operationOutcome(om, "error", "required", "Missing resource in PUT entry"), om);
         }
 
-        // Extract KVNR from subject.identifier
         String kvnr = extractKvnrFromResource(resource);
         if (kvnr == null) {
             return batchResponseEntry("400 Bad Request",
-                    operationOutcome(om, "error", "required", "MedicationRequest.subject.identifier.value (KVNR) required"),
-                    om);
+                    operationOutcome(om, "error", "required", "MedicationRequest.subject.identifier.value (KVNR) required"), om);
         }
 
-        // Task 3.9: Dosage validation
+        // Dosage validation
         JsonNode dosageArr = resource.path("dosageInstruction");
         if (dosageArr.isArray() && !dosageArr.isEmpty()) {
             JsonNode dosage = dosageArr.get(0);
@@ -288,12 +267,19 @@ public class FhirResource {
             }
         }
 
-        // Task 3.7: Duplicate detection (only for new entries — check by existing ID)
-        String reqId = resource.path("id").asText(null);
-        boolean isNew = reqId == null || medicationService.getRawMedicationPlanBundle(kvnr)
+        // Assign ID if missing
+        String rawId = resource.path("id").asText(null);
+        if (rawId == null || rawId.isBlank()) {
+            rawId = "emp-" + kvnr.toLowerCase() + "-" + System.currentTimeMillis();
+            ((ObjectNode) resource).put("id", rawId);
+        }
+        final String reqId = rawId;
+
+        boolean isNew = medicationService.getRawMedicationPlanBundle(kvnr)
                 .map(b -> !bundleContainsId(b, reqId))
                 .orElse(true);
 
+        // Duplicate detection (new entries only)
         if (isNew) {
             DuplicateMatch dup = medicationService.checkForDuplicatesFhir(kvnr, resource, batchBundle);
             if (dup.isDuplicate()) {
@@ -302,7 +288,7 @@ public class FhirResource {
             }
         }
 
-        // Task 3.8: Chronology mismatch check (if ifMatch provided)
+        // Chronology mismatch check
         if (ifMatch != null && !ifMatch.isBlank()) {
             try {
                 medicationService.checkChronologyId(kvnr, ifMatch);
@@ -312,38 +298,17 @@ public class FhirResource {
             }
         }
 
-        // Parse to flat model and upsert into cache
-        MedicationRequest flat = medicationService.parseToFlatMedicationRequest(resource, batchBundle);
-        if (flat.getId() == null || flat.getId().isBlank()) {
-            flat.setId("emp-" + kvnr.toLowerCase() + "-" + System.currentTimeMillis());
-            ((ObjectNode) resource).put("id", flat.getId());
-        }
-        if (isNew) {
-            medicationService.addMedicationRequest(kvnr, flat);
-        } else {
-            medicationService.updateMedicationRequest(kvnr, flat.getId(), flat);
-        }
-
-        // Update raw bundle
-        medicationService.upsertToPlanBundle(kvnr, (ObjectNode) resource, null);
-
-        // Task 3.10: Provenance generation
-        ObjectNode provenance = medicationService.buildEmpChronologyProvenance(kvnr, agent);
-        medicationService.logActivity(agent, "PUT MedicationRequest/" + flat.getId());
+        medicationService.upsertToPlanBundle(kvnr, resource, null);
+        medicationService.buildEmpChronologyProvenance(kvnr, agent);
+        medicationService.logActivity(agent, "PUT MedicationRequest/" + reqId);
 
         ObjectNode responseEntry = om.createObjectNode();
-        ObjectNode resp = om.createObjectNode();
-        resp.put("status", isNew ? "201 Created" : "200 OK");
-        responseEntry.set("response", resp);
+        responseEntry.set("response", om.createObjectNode().put("status", isNew ? "201 Created" : "200 OK"));
         responseEntry.set("resource", resource);
-
-        // Include provenance as additional entry — we add it as a resource on the response
-        // (FHIRModel processes batch-response resources into cache)
         return responseEntry;
     }
 
     private ObjectNode processBatchDelete(String url, String agent, ObjectMapper om) {
-        // url = "MedicationRequest/<id>"
         String[] parts = url.split("/");
         if (parts.length < 2) {
             return batchResponseEntry("400 Bad Request",
@@ -351,14 +316,12 @@ public class FhirResource {
         }
         String reqId = parts[parts.length - 1];
 
-        // Find KVNR from raw plan bundles
         String kvnr = findKvnrForPlanEntry(reqId);
         if (kvnr == null) {
             return batchResponseEntry("404 Not Found",
                     operationOutcome(om, "error", "not-found", "MedicationRequest/" + reqId + " not found"), om);
         }
 
-        medicationService.deleteMedicationEntry(kvnr, reqId);
         medicationService.removeFromPlanBundle(kvnr, reqId);
         medicationService.buildEmpChronologyProvenance(kvnr, agent);
         medicationService.logActivity(agent, "DELETE MedicationRequest/" + reqId);
@@ -369,7 +332,7 @@ public class FhirResource {
     }
 
     // -------------------------------------------------------------------------
-    // Task 3.5a — $link-emp instance operation
+    // $link-emp instance operation
     // -------------------------------------------------------------------------
 
     @POST
@@ -404,39 +367,31 @@ public class FhirResource {
         }
         String kvnr = kvnrOpt.get();
 
-        try {
-            medicationService.linkMedicationPlanEntry(kvnr, stmtId, empEntryId, agent);
-        } catch (IllegalArgumentException e) {
-            String code = e.getMessage().contains("ALREADY_LINKED") ? "MEDSVC_ALREADY_LINKED"
-                    : "LINKING_NOT_SUCCESSFUL";
+        // Verify the target eMP entry exists in the raw plan bundle
+        boolean empEntryExists = medicationService.getRawMedicationPlanBundle(kvnr)
+                .map(b -> bundleContainsId(b, empEntryId))
+                .orElse(false);
+        if (!empEntryExists) {
             return Response.status(400)
-                    .entity(operationOutcome(om, "error", "business-rule", code).toString())
+                    .entity(operationOutcome(om, "error", "business-rule", "LINKING_NOT_SUCCESSFUL").toString())
                     .type(FHIR_CONTENT_TYPE).build();
         }
 
-        // Sync basedOn to raw bundle
         medicationService.setStatementBasedOn(stmtId, "MedicationRequest/" + empEntryId);
 
         Optional<JsonNode> stmtNode = medicationService.findRawMedicationStatement(stmtId);
         ObjectNode chronoProv = medicationService.buildEmpChronologyProvenance(kvnr, agent);
 
-        // Build Parameters response
         ObjectNode response = om.createObjectNode().put("resourceType", "Parameters");
         ArrayNode paramArr = om.createArrayNode();
-        if (stmtNode.isPresent()) {
-            paramArr.add(om.createObjectNode()
-                    .put("name", "updated-statement")
-                    .set("resource", stmtNode.get()));
-        }
-        paramArr.add(om.createObjectNode()
-                .put("name", "provenance")
-                .set("resource", chronoProv));
+        stmtNode.ifPresent(n -> paramArr.add(om.createObjectNode().put("name", "updated-statement").set("resource", n)));
+        paramArr.add(om.createObjectNode().put("name", "provenance").set("resource", chronoProv));
         response.set("parameter", paramArr);
         return Response.ok(response.toString()).type(FHIR_CONTENT_TYPE).build();
     }
 
     // -------------------------------------------------------------------------
-    // Task 3.5b — $unlink-emp instance operation
+    // $unlink-emp instance operation
     // -------------------------------------------------------------------------
 
     @POST
@@ -460,15 +415,14 @@ public class FhirResource {
         }
         String kvnr = kvnrOpt.get();
 
-        try {
-            medicationService.unlinkMedicationPlanEntry(kvnr, stmtId, agent);
-        } catch (IllegalArgumentException e) {
+        // Check if actually linked
+        Optional<JsonNode> stmtOpt = medicationService.findRawMedicationStatement(stmtId);
+        if (stmtOpt.isEmpty() || stmtOpt.get().path("basedOn").isMissingNode()) {
             return Response.status(400)
                     .entity(operationOutcome(om, "error", "business-rule", "UNLINKING_NOT_SUCCESSFUL").toString())
                     .type(FHIR_CONTENT_TYPE).build();
         }
 
-        // Sync removal to raw bundle
         medicationService.removeStatementBasedOn(stmtId);
 
         Optional<JsonNode> stmtNode = medicationService.findRawMedicationStatement(stmtId);
@@ -477,11 +431,7 @@ public class FhirResource {
 
         ObjectNode response = om.createObjectNode().put("resourceType", "Parameters");
         ArrayNode paramArr = om.createArrayNode();
-        if (stmtNode.isPresent()) {
-            paramArr.add(om.createObjectNode()
-                    .put("name", "updated-statement")
-                    .set("resource", stmtNode.get()));
-        }
+        stmtNode.ifPresent(n -> paramArr.add(om.createObjectNode().put("name", "updated-statement").set("resource", n)));
         paramArr.add(om.createObjectNode().put("name", "activity-provenance").set("resource", activityProv));
         paramArr.add(om.createObjectNode().put("name", "provenance").set("resource", chronoProv));
         response.set("parameter", paramArr);
@@ -492,7 +442,6 @@ public class FhirResource {
     // Helpers
     // -------------------------------------------------------------------------
 
-    /** Task 3.6: Validate X-Requesting-Organization header for mutating requests. */
     private Response validateOrgHeader(String agent) {
         if (agent == null || agent.isBlank()) {
             ObjectMapper om = medicationService.getObjectMapper();
@@ -508,26 +457,15 @@ public class FhirResource {
         return null;
     }
 
-    /** Extract KVNR from a search parameter value (may be plain KVNR or identifier URL). */
     private String extractKvnr(String patient) {
-        // patient may be "X123456789" or "http://fhir.de/sid/gkv/kvid-10|X123456789"
-        if (patient.contains("|")) {
-            return patient.substring(patient.lastIndexOf('|') + 1);
-        }
-        return patient;
+        return patient.contains("|") ? patient.substring(patient.lastIndexOf('|') + 1) : patient;
     }
 
-    /** Extract KVNR from a FHIR resource's subject.identifier.value. */
     private String extractKvnrFromResource(JsonNode resource) {
-        JsonNode subject = resource.path("subject");
-        if (!subject.isMissingNode()) {
-            String val = subject.path("identifier").path("value").asText(null);
-            if (val != null) return val;
-        }
-        return null;
+        String val = resource.path("subject").path("identifier").path("value").asText(null);
+        return val;
     }
 
-    /** Extract a Parameters.parameter[name=paramName].valueString value. */
     private String extractParameter(JsonNode params, String paramName) {
         for (JsonNode param : params.path("parameter")) {
             if (paramName.equals(param.path("name").asText())) {
@@ -539,10 +477,7 @@ public class FhirResource {
         return null;
     }
 
-    /** Find KVNR for a MedicationRequest by scanning raw plan bundles. */
     private String findKvnrForPlanEntry(String reqId) {
-        // We use a reverse lookup via the flat cache since it's easier
-        // Alternative: scan raw bundles
         for (String kvnr : List.of("X123456789", "Y987654321", "Z555111222")) {
             Optional<JsonNode> bundle = medicationService.getRawMedicationPlanBundle(kvnr);
             if (bundle.isPresent() && bundleContainsId(bundle.get(), reqId)) {
@@ -552,7 +487,6 @@ public class FhirResource {
         return null;
     }
 
-    /** Check if a bundle contains an entry with the given resource id. */
     private boolean bundleContainsId(JsonNode bundle, String id) {
         for (JsonNode entry : bundle.path("entry")) {
             if (id.equals(entry.path("resource").path("id").asText())) return true;
@@ -560,30 +494,21 @@ public class FhirResource {
         return false;
     }
 
-    /** Build an empty FHIR searchset Bundle. */
     private String emptyBundle() {
         return "{\"resourceType\":\"Bundle\",\"type\":\"searchset\",\"total\":0,\"entry\":[]}";
     }
 
-    /** Build a FHIR OperationOutcome node. */
     private ObjectNode operationOutcome(ObjectMapper om, String severity, String code, String diagnostics) {
         ObjectNode oo = om.createObjectNode().put("resourceType", "OperationOutcome");
         ArrayNode issues = om.createArrayNode();
-        ObjectNode issue = om.createObjectNode()
-                .put("severity", severity)
-                .put("code", code)
-                .put("diagnostics", diagnostics);
-        issues.add(issue);
+        issues.add(om.createObjectNode().put("severity", severity).put("code", code).put("diagnostics", diagnostics));
         oo.set("issue", issues);
         return oo;
     }
 
-    /** Wrap an OperationOutcome into a batch-response entry with the given status. */
     private ObjectNode batchResponseEntry(String status, ObjectNode outcome, ObjectMapper om) {
         ObjectNode entry = om.createObjectNode();
-        ObjectNode resp = om.createObjectNode().put("status", status);
-        resp.set("outcome", outcome);
-        entry.set("response", resp);
+        entry.set("response", om.createObjectNode().put("status", status).set("outcome", outcome));
         return entry;
     }
 

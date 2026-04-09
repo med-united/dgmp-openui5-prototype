@@ -1,0 +1,85 @@
+{
+    "_version": "1.58.0",
+    "sap.app": {
+        "id": "epa",
+        "type": "application",
+        "title": "ePA Medication Service",
+        "description": "ePA Medication Service UI Prototype",
+        "applicationVersion": {
+            "version": "1.0.0"
+        },
+        "dataSources": {
+            "fhir": {
+                "uri": "/fhir",
+                "type": "FHIR",
+                "settings": {}
+            }
+        }
+    },
+    "sap.ui": {
+        "technology": "UI5",
+        "deviceTypes": {
+            "desktop": true,
+            "tablet": true,
+            "phone": false
+        }
+    },
+    "sap.ui5": {
+        "rootView": {
+            "viewName": "epa.view.PatientSelection",
+            "type": "XML",
+            "async": true,
+            "id": "app"
+        },
+        "dependencies": {
+            "minUI5Version": "1.120.6",
+            "libs": {
+                "sap.ui.core": {},
+                "sap.m": {},
+                "sap.ui.layout": {},
+                "sap.ui.table": {},
+                "sap.fhir": {
+                    "lazy": false
+                }
+            }
+        },
+        "models": {
+            "fhir": {
+                "type": "sap.fhir.model.r4.FHIRModel",
+                "dataSource": "fhir",
+                "settings": {
+                    "defaultHttpMethod": "POST",
+                    "httpHeaders": {
+                        "X-Requesting-Organization": "Hospital-A"
+                    }
+                }
+            },
+            "ui": {
+                "type": "sap.ui.model.json.JSONModel",
+                "settings": {
+                    "data": {
+                        "currentPatient": null,
+                        "currentKVNR": "",
+                        "orgId": "Hospital-A",
+                        "patientSelected": false,
+                        "recentPatients": [],
+                        "busy": false,
+                        "eMLVisible": false,
+                        "filterShowLinked": false,
+                        "filterTimeRange": "3_MONTHS",
+                        "reconciliation": {
+                            "emlEntries": [],
+                            "empEntries": [],
+                            "items": []
+                        },
+                        "medicationStatementMap": {}
+                    }
+                }
+            }
+        },
+        "contentDensities": {
+            "compact": true,
+            "cozy": true
+        }
+    }
+}

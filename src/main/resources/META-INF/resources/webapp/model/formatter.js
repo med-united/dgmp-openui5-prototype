@@ -22,7 +22,7 @@ sap.ui.define([], function () {
 
         /**
          * Format medication status with icon
-         * @param {string} status - Status (active, paused, planned, completed)
+         * @param {string} status - FHIR R4 Status
          * @returns {string} Status text
          */
         formatStatus: function (status) {
@@ -30,25 +30,33 @@ sap.ui.define([], function () {
 
             var statusMap = {
                 "active": "Aktiv",
-                "paused": "Pausiert",
-                "planned": "Geplant",
-                "completed": "Abgeschlossen"
+                "on-hold": "Pausiert",
+                "stopped": "Abgebrochen",
+                "completed": "Abgeschlossen",
+                "cancelled": "Storniert",
+                "entered-in-error": "Fehler",
+                "draft": "Entwurf",
+                "unknown": "Unbekannt"
             };
 
-            return statusMap[status] || status;
+            return statusMap[status] || "Unbekannt";
         },
 
         /**
          * Get status icon
-         * @param {string} status - Status
+         * @param {string} status - FHIR R4 Status
          * @returns {string} Icon name
          */
         getStatusIcon: function (status) {
             var iconMap = {
-                "active": "sap-icon://accept",
-                "paused": "sap-icon://pause",
-                "planned": "sap-icon://future",
-                "completed": "sap-icon://complete"
+                "active": "sap-icon://sys-enter-2",
+                "on-hold": "sap-icon://pause",
+                "stopped": "sap-icon://stop",
+                "completed": "sap-icon://complete",
+                "cancelled": "sap-icon://cancel",
+                "entered-in-error": "sap-icon://error",
+                "draft": "sap-icon://document",
+                "unknown": "sap-icon://question-mark"
             };
 
             return iconMap[status] || "sap-icon://question-mark";

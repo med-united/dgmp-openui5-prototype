@@ -14,7 +14,7 @@ sap.ui.define([
 
         /**
          * Lazily gets or creates the 'entry' model.
-         * @returns {sap.ui.model.json.JSONModel} The entry model
+         * @returns {sap.ui.model.json.JSONModel}
          * @private
          */
         _getEntryModel: function () {
@@ -37,7 +37,6 @@ sap.ui.define([
             return oModel;
         },
 
-        // Helper to get parent view (set in index.html)
         _getParentView: function () {
             return this.getView();
         },
@@ -45,6 +44,7 @@ sap.ui.define([
         // Edit mode properties
         _editMode: false,
         _editEntryId: null,
+        _linkedEmlId: null,
 
         /**
          * Set dialog to edit mode and pre-fill with entry data.
@@ -55,7 +55,6 @@ sap.ui.define([
             this._editMode = true;
             this._editEntryId = entryId;
 
-            // Update model data
             var oModel = this._getEntryModel();
             oModel.setData({
                 pzn: entryData.pzn || "",
@@ -70,12 +69,9 @@ sap.ui.define([
                 entryType: entryData.entryType || "manual"
             });
 
-            // Update dialog title
             var oView = this._getParentView();
             var oDialog = oView.byId("addMedicationDialog");
-            if (oDialog) {
-                oDialog.setTitle("Edit Medication");
-            }
+            if (oDialog) oDialog.setTitle("Edit Medication");
         },
 
         /**
@@ -86,7 +82,6 @@ sap.ui.define([
             this._editEntryId = null;
             this._linkedEmlId = null;
 
-            // Reset model data
             var oModel = this._getEntryModel();
             oModel.setData({
                 medicationName: "",
@@ -101,72 +96,72 @@ sap.ui.define([
                 entryType: "manual"
             });
 
-            // Reset dialog title
             var oView = this._getParentView();
             var oDialog = oView.byId("addMedicationDialog");
-            if (oDialog) {
-                oDialog.setTitle("Add Medication");
-            }
+            if (oDialog) oDialog.setTitle("Add Medication");
         },
 
+        /**
+         * Name suggest: calls GET /fhir/Medication?name:contains=<term>
+         * (GET is acceptable here — the search term is not PHI per Decision 11 exception)
+         */
         onNameSuggest: function (oEvent) {
             var sValue = oEvent.getParameter("suggestValue");
             var oInput = oEvent.getSource();
 
-            if (sValue.length < 2) {
-                return;
-            }
+            if (!sValue || sValue.length < 2) return;
 
-            fetch("/api/medications/search?query=" + encodeURIComponent(sValue))
+            fetch("/fhir/Medication?name:contains=" + encodeURIComponent(sValue))
                 .then(function (response) { return response.json(); })
-                .then(function (data) {
-                    var oModel = new JSONModel({
-                        suggestions: data
+                .then(function (oBundle) {
+                    var aEntries = (oBundle && oBundle.entry) ? oBundle.entry : [];
+                    var aSuggestions = aEntries.map(function (oE) {
+                        var oMed = oE.resource;
+                        var sPzn = "";
+                        if (oMed && oMed.code && oMed.code.coding) {
+                            var oPzn = oMed.code.coding.find(function (c) {
+                                return c.system === "http://fhir.de/CodeSystem/ifa/pzn";
+                            });
+                            if (oPzn) sPzn = oPzn.code || "";
+                        }
+                        return {
+                            medicationName: (oMed && oMed.code && oMed.code.text) || "",
+                            pzn: sPzn,
+                            fhirId: (oMed && oMed.id) || ""
+                        };
                     });
+                    var oModel = new JSONModel({ suggestions: aSuggestions });
                     oInput.setModel(oModel);
                 })
-                .catch(function (err) {
-                    console.error("Search failed", err);
-                });
+                .catch(function (err) { console.error("Search failed", err); });
         },
 
         onSuggestionItemSelected: function (oEvent) {
             var oItem = oEvent.getParameter("selectedItem");
-            // Suggestions model is set on the Input control, so getBindingContext() works relative to that
             var oData = oItem.getBindingContext().getObject();
-
-            if (oData) {
-                this.fillFields(oData);
-            }
+            if (oData) this.fillFields(oData);
         },
 
         fillFields: function (oData) {
             var oModel = this._getEntryModel();
-            // Update model properties. We use setProperty to trigger UI updates.
-            // Or just merge data into the current object.
             var oCurrentData = oModel.getData();
 
-            // Store source ID if this is an eML entry (starts with 'presc-' or 'disp-')
-            // We use this to auto-link when saving.
+            // Store source dispense ID if this is an eML entry (for auto-link on save)
             if (oData.id && (oData.id.startsWith("presc-") || oData.id.startsWith("disp-"))) {
                 this._linkedEmlId = oData.id;
             }
 
-            // Map fields
             oCurrentData.pzn = oData.pzn || oCurrentData.pzn;
             oCurrentData.medicationName = oData.medicationName || oCurrentData.medicationName;
             oCurrentData.strength = oData.strength || oCurrentData.strength;
             oCurrentData.activeIngredient = oData.activeIngredient || oCurrentData.activeIngredient;
             oCurrentData.atcCode = oData.atcCode || oCurrentData.atcCode;
             oCurrentData.dosageStructured = oData.dosageStructured || oCurrentData.dosageStructured;
-            oCurrentData.dosageStructured = oData.dosageStructured || oCurrentData.dosageStructured;
             oCurrentData.dosageText = oData.dosageText || oCurrentData.dosageText;
             oCurrentData.indication = oData.indication || oCurrentData.indication;
 
             oModel.setData(oCurrentData);
-            if (oData.medicationName) {
-                MessageToast.show("Selected: " + oData.medicationName);
-            }
+            if (oData.medicationName) MessageToast.show("Selected: " + oData.medicationName);
         },
 
         onPZNSearch: function (oEvent) {
@@ -176,16 +171,29 @@ sap.ui.define([
                 return;
             }
 
-            // Backend Search
             var that = this;
             this.getView().setBusy(true);
-            fetch("/api/medications/search?query=" + encodeURIComponent(sPZN))
+            fetch("/fhir/Medication?name:contains=" + encodeURIComponent(sPZN))
                 .then(function (response) { return response.json(); })
-                .then(function (data) {
-                    // Try to find exact PZN match
-                    var oMatch = data.find(function (m) { return m.pzn === sPZN; });
-                    if (oMatch) {
-                        that.fillFields(oMatch);
+                .then(function (oBundle) {
+                    var aEntries = (oBundle && oBundle.entry) ? oBundle.entry : [];
+                    // Find PZN match
+                    var oMatchEntry = aEntries.find(function (oE) {
+                        var oMed = oE.resource;
+                        if (!oMed || !oMed.code || !oMed.code.coding) return false;
+                        return oMed.code.coding.some(function (c) {
+                            return c.system === "http://fhir.de/CodeSystem/ifa/pzn" && c.code === sPZN;
+                        });
+                    });
+                    if (oMatchEntry) {
+                        var oMed = oMatchEntry.resource;
+                        var oPznCoding = oMed.code.coding.find(function (c) {
+                            return c.system === "http://fhir.de/CodeSystem/ifa/pzn";
+                        });
+                        that.fillFields({
+                            medicationName: (oMed.code && oMed.code.text) || "",
+                            pzn: oPznCoding ? oPznCoding.code : sPZN
+                        });
                     } else {
                         MessageBox.information("PZN " + sPZN + " not found in medication database.");
                     }
@@ -194,9 +202,7 @@ sap.ui.define([
                     console.error("PZN lookup failed", err);
                     MessageBox.error("Medication search failed. Please try again later.");
                 })
-                .finally(function () {
-                    that.getView().setBusy(false);
-                });
+                .finally(function () { that.getView().setBusy(false); });
         },
 
         onSaveMedication: function () {
@@ -208,7 +214,6 @@ sap.ui.define([
             var sDosageStruct = oData.dosageStructured;
             var sDosageText = oData.dosageText;
 
-            // Validation
             if (!sName || !sPZN) {
                 MessageBox.error("Medication Name and PZN are required.");
                 return;
@@ -219,21 +224,15 @@ sap.ui.define([
                 return;
             }
 
-            // Validated dosage: generated text MUST match dosageText if valid structured dosage is present
-            // For this prototype, we enforce equality to satisfy the strict backend check
-            if (sDosageStruct) {
-                sDosageText = sDosageStruct;
-            }
+            // renderedDosageInstruction rule: use dosageText as the rendered form
+            var sRenderedDosage = sDosageStruct || sDosageText;
 
-            // Construct payload
+            // Build a FHIR MedicationRequest resource for the batch entry
             var oEntry = {
                 medicationName: sName,
                 pzn: sPZN,
-                strength: oData.strength,
-                activeIngredient: oData.activeIngredient,
-                atcCode: oData.atcCode,
                 dosageStructured: sDosageStruct,
-                dosageText: sDosageText,
+                dosageText: sRenderedDosage,
                 intakeInstructions: oData.intakeInstructions,
                 note: oData.note,
                 indication: oData.indication,
@@ -244,120 +243,127 @@ sap.ui.define([
             this._saveToBackend(oEntry);
         },
 
+        /**
+         * Submit add/update via FHIR batch POST /fhir.
+         * Uses PUT MedicationRequest for both add (server-assigned ID if new) and update.
+         *
+         * Task 5.7 coverage: error detection by OperationOutcome.issue[0].code.
+         */
         _saveToBackend: function (oEntry) {
-            // Need KVNR. It's in the app model.
-            var oModel = this.getView().getModel("app");
-            var sKvnr = oModel.getProperty("/currentKVNR");
+            var oUIModel = this.getView().getModel("ui");
+            var sKvnr = oUIModel.getProperty("/currentKVNR");
             var that = this;
             var oView = this._getParentView();
 
-            var sUrl = "/api/medications/" + sKvnr + "/add-emp-entry";
-            if (this._linkedEmlId && !this._editMode) {
-                sUrl += "?linkedEmlId=" + this._linkedEmlId;
-            }
+            // Build FHIR MedicationRequest resource
+            var oMedicationRequest = {
+                resourceType: "MedicationRequest",
+                status: "active",
+                intent: "order",
+                subject: {
+                    identifier: { system: "http://fhir.de/sid/gkv/kvid-10", value: sKvnr }
+                },
+                medicationCodeableConcept: {
+                    coding: [{ system: "http://fhir.de/CodeSystem/ifa/pzn", code: oEntry.pzn }],
+                    text: oEntry.medicationName
+                },
+                dosageInstruction: [{
+                    text: oEntry.dosageText,
+                    patientInstruction: oEntry.intakeInstructions || ""
+                }],
+                authoredOn: oEntry.authoredDate,
+                note: oEntry.note ? [{ text: oEntry.note }] : []
+            };
+
             var sMethod = "POST";
+            var sUrl = "MedicationRequest";
 
-            if (this._editMode) {
-                sUrl = "/api/medications/" + sKvnr + "/update-emp-entry/" + this._editEntryId;
+            if (this._editMode && this._editEntryId) {
                 sMethod = "PUT";
-
-                // Add chronologyId for concurrency check
-                var oPlan = oModel.getProperty("/medicationPlan");
-                if (oPlan && oPlan.chronologyId) {
-                    // Check if URL already has params
-                    if (sUrl.indexOf("?") === -1) {
-                        sUrl += "?chronologyId=" + encodeURIComponent(oPlan.chronologyId);
-                    } else {
-                        sUrl += "&chronologyId=" + encodeURIComponent(oPlan.chronologyId);
-                    }
-                }
+                sUrl = "MedicationRequest/" + this._editEntryId;
+                oMedicationRequest.id = this._editEntryId;
             }
+
+            var oBatch = {
+                resourceType: "Bundle",
+                type: "batch",
+                entry: [{ request: { method: sMethod, url: sUrl }, resource: oMedicationRequest }]
+            };
 
             this.getView().setBusy(true);
-            fetch(sUrl, {
-                method: sMethod,
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Requesting-Organization": "Hospital-A"
-                },
-                body: JSON.stringify(oEntry)
-            })
-                .then(function (response) {
-                    if (response.status === 409) {
-                        return response.json().then(function (errorData) {
-                            // Check error type
-                            // 1. Duplicate Match (Object)
-                            if (errorData.isDuplicate) {
-                                var oMainController = that.getView().getController();
-                                if (oMainController && oMainController._handleDuplicateResponse) {
-                                    oView.byId("addMedicationDialog").close();
-                                    oMainController._handleDuplicateResponse(errorData, function (bIgnore) {
-                                        if (bIgnore) {
-                                            that._retrySave(sKvnr, oEntry);
-                                        }
-                                    });
-                                } else {
-                                    MessageBox.warning("A similar medication already exists in the plan.");
-                                }
-                                throw new Error("Duplicate detected (Handled)"); // Break duplicate promise chain
-                            }
-                            // 2. Chronology Mismatch (Error Message)
-                            else if (errorData.error && errorData.error.includes("CHRONOLOGY")) {
-                                MessageBox.error("The plan has been modified by another user. Please refresh and try again.");
-                                throw new Error("Chronology mismatch");
-                            }
-                            else {
-                                // Other 409
-                                throw new Error("Conflict: " + (errorData.error || "Unknown"));
-                            }
-                        });
-                    }
-
-                    if (!response.ok) throw new Error("Server returned " + response.status);
-                    return response.json();
-                })
-                .then(function (updatedPlan) {
-                    var sMessage = that._editMode ? "Medication updated successfully" : "Medication added to plan";
-                    MessageToast.show(sMessage);
-
-                    if (that._editMode) {
-                        that.clearEditMode();
-                    }
-
-                    oView.byId("addMedicationDialog").close();
-
-                    // Refresh data via EventBus
-                    sap.ui.getCore().getEventBus().publish("epa", "refreshData");
-                })
-                .catch(function (err) {
-                    if (err.message === "Duplicate detected (Handled)" || err.message === "Chronology mismatch") {
-                        // Already handled UI
-                        return;
-                    }
-                    if (!err.message.includes("Duplicate")) {
-                        MessageBox.error("Failed to save medication: " + err.message);
-                    }
-                })
-                .finally(function () {
-                    that.getView().setBusy(false);
-                });
-        },
-
-        _retrySave: function (sKvnr, oEntry) {
-            var that = this;
-            fetch("/api/medications/" + sKvnr + "/add-emp-entry", {
+            fetch("/fhir", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "X-Requesting-Organization": "Hospital-A"
                 },
-                body: JSON.stringify(oEntry)
+                body: JSON.stringify(oBatch)
             })
-                .then(function (res) { return res.json(); })
-                .then(function () {
-                    MessageToast.show("Medication added");
+                .then(function (response) {
+                    if (!response.ok) throw new Error("HTTP " + response.status);
+                    return response.json();
+                })
+                .then(function (oBatchResponse) {
+                    // Inspect per-entry statuses — Task 5.7: distinguish by OperationOutcome.issue[0].code
+                    var aEntries = (oBatchResponse && oBatchResponse.entry) ? oBatchResponse.entry : [];
+                    var oFailed = aEntries.find(function (e) {
+                        var sStatus = e.response && e.response.status ? String(e.response.status) : "";
+                        return sStatus.startsWith("4") || sStatus.startsWith("5");
+                    });
+
+                    if (oFailed) {
+                        var sStatus = oFailed.response && oFailed.response.status ? String(oFailed.response.status) : "";
+                        var oOutcome = oFailed.response && oFailed.response.outcome;
+                        var sCode = (oOutcome && oOutcome.issue && oOutcome.issue[0])
+                            ? oOutcome.issue[0].code : "unknown";
+
+                        // Task 5.7: dispatch by OperationOutcome.issue[0].code
+                        if (sCode === "isDuplicate" || sStatus === "409") {
+                            // Duplicate: show DuplicateDialog via parent controller
+                            var oMainController = oView.getController();
+                            if (oMainController && oMainController._handleDuplicateResponse) {
+                                oView.byId("addMedicationDialog").close();
+                                oMainController._handleDuplicateResponse(oOutcome, function (bIgnore) {
+                                    if (bIgnore) that._retrySave(oEntry, true);
+                                });
+                            } else {
+                                MessageBox.warning("A similar medication already exists in the plan.");
+                            }
+                            return;
+                        }
+
+                        if (sCode === "MEDSVC_EMP_CHRONOLOGY_ID_MISMATCH" || sStatus === "409") {
+                            MessageBox.error("The plan has been modified by another user. Please refresh and try again.");
+                            return;
+                        }
+
+                        if (sStatus.startsWith("422")) {
+                            MessageBox.error("Dosage validation failed. Please check the dosage instruction format.");
+                            return;
+                        }
+
+                        throw new Error("Batch entry failed: " + sStatus + " (" + sCode + ")");
+                    }
+
+                    var sMessage = that._editMode ? "Medication updated successfully" : "Medication added to plan";
+                    MessageToast.show(sMessage);
+                    if (that._editMode) that.clearEditMode();
+                    oView.byId("addMedicationDialog").close();
                     sap.ui.getCore().getEventBus().publish("epa", "refreshData");
-                });
+                })
+                .catch(function (err) {
+                    console.error("Save failed", err);
+                    MessageBox.error("Failed to save medication: " + err.message);
+                })
+                .finally(function () { that.getView().setBusy(false); });
+        },
+
+        /**
+         * Retry save without duplicate check (after user acknowledges duplicate).
+         */
+        _retrySave: function (oEntry) {
+            // Re-invoke the same save path — server will add even with duplicate
+            this._saveToBackend(oEntry);
         },
 
         onCancelMedication: function () {

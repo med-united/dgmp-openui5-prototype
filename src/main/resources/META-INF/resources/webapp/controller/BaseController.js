@@ -8,9 +8,21 @@ sap.ui.define([
     return Controller.extend("epa.controller.BaseController", {
 
         /**
-         * Attaches a listener to /currentKVNR on the "app" model.
+         * Returns the FHIRModel registered as "fhir" on this view.
+         * @returns {sap.fhir.model.r4.FHIRModel}
+         */
+        getFHIRModel: function () {
+            return this.getView().getModel("fhir");
+        },
+
+        /**
+         * Attaches a listener to /currentKVNR on the "ui" model.
          * When the KVNR changes, fnCallback is invoked with the new value.
          * Call this from onInit in feature controllers.
+         *
+         * Pattern per openui5-fhir docs: controllers re-bind their list controls
+         * via bindItems()/bindAggregation() with the new patient= parameter when
+         * the KVNR changes. Each controller is responsible for its own re-binding.
          *
          * @param {function} fnCallback - called with (sKvnr) on each change
          */
@@ -18,7 +30,7 @@ sap.ui.define([
             var that = this;
             this.getView().addEventDelegate({
                 onBeforeRendering: function () {
-                    var oModel = that.getView().getModel("app");
+                    var oModel = that.getView().getModel("ui");
                     if (oModel) {
                         var sKvnr = oModel.getProperty("/currentKVNR");
                         if (sKvnr) {
@@ -35,58 +47,6 @@ sap.ui.define([
                     }
                 }
             }, this);
-        },
-
-        /**
-         * Loads the medication list for the given KVNR and stores it on the
-         * shared "app" model at /medicationList.
-         *
-         * @param {string} sKvnr
-         * @returns {Promise}
-         */
-        _loadMedicationList: function (sKvnr) {
-            var oModel = this.getView().getModel("app");
-            return fetch("/api/medications/list/" + sKvnr)
-                .then(function (response) {
-                    if (!response.ok) throw new Error("List not found");
-                    return response.json();
-                })
-                .then(function (medicationList) {
-                    oModel.setProperty("/medicationList", medicationList);
-                    oModel.setProperty("/eMLVisible", true);
-                    return medicationList;
-                })
-                .catch(function (error) {
-                    console.error("Failed to load medication list:", error);
-                    oModel.setProperty("/medicationList", { entries: [] });
-                    oModel.setProperty("/eMLVisible", true);
-                    return { entries: [] };
-                });
-        },
-
-        /**
-         * Loads the medication plan for the given KVNR and stores it on the
-         * shared "app" model at /medicationPlan.
-         *
-         * @param {string} sKvnr
-         * @returns {Promise}
-         */
-        _loadMedicationPlan: function (sKvnr) {
-            var oModel = this.getView().getModel("app");
-            return fetch("/api/medications/plan/" + sKvnr)
-                .then(function (response) {
-                    if (!response.ok) throw new Error("Plan not found");
-                    return response.json();
-                })
-                .then(function (medicationPlan) {
-                    oModel.setProperty("/medicationPlan", medicationPlan);
-                    return medicationPlan;
-                })
-                .catch(function (error) {
-                    console.error("Failed to load medication plan:", error);
-                    oModel.setProperty("/medicationPlan", { entries: [] });
-                    return { entries: [] };
-                });
         },
 
         /**

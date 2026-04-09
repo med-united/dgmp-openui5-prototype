@@ -6,22 +6,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ePA Medication Service</title>
 
-    <script id="sap-ui-bootstrap" src="https://sdk.openui5.org/resources/sap-ui-core.js"
-        data-sap-ui-theme="sap_horizon" data-sap-ui-libs="sap.m,sap.ui.layout,sap.ui.table" data-sap-ui-async="true"
-        data-sap-ui-bindingSyntax="complex" data-sap-ui-compatVersion="edge" data-sap-ui-resourceroots='{"epa": "./"}'>
-        </script>
+    <!--
+        sap.fhir namespace mapped to openui5-fhir@2.4.0 on unpkg CDN (src/ contains the sap/ subtree).
+    -->
+    <script id="sap-ui-bootstrap"
+        src="https://sdk.openui5.org/resources/sap-ui-core.js"
+        data-sap-ui-theme="sap_horizon"
+        data-sap-ui-libs="sap.m,sap.ui.layout,sap.ui.table,sap.fhir"
+        data-sap-ui-async="true"
+        data-sap-ui-bindingSyntax="complex"
+        data-sap-ui-compatVersion="edge"
+        data-sap-ui-resourceroots='{
+            "epa": "./",
+            "sap.fhir": "https://unpkg.com/openui5-fhir@2.4.0/src/sap/fhir"
+        }'>
+    </script>
 
     <script>
         sap.ui.getCore().attachInit(function () {
             sap.ui.require([
-                "sap/ui/core/mvc/XMLView",
-                "epa/controller/PatientSelection.controller"
-            ], function (XMLView) {
-                XMLView.create({
-                    viewName: "epa.view.PatientSelection"
-                }).then(function (oView) {
-                    oView.placeAt("content");
+                "sap/ui/core/ComponentContainer"
+            ], function (ComponentContainer) {
+                var oContainer = new ComponentContainer({
+                    name: "epa",
+                    settings: {
+                        id: "epa"
+                    },
+                    async: true
                 });
+                oContainer.placeAt("content");
             });
         });
     </script>

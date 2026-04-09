@@ -9,70 +9,65 @@
         <OverflowToolbar>
             <Title text="Reconciliation (eML vs eMP)" level="H3"/>
             <ToolbarSpacer/>
-            <!-- Added ComboBox for Time Range -->
             <ComboBox selectionChange=".onTimeFilterChange" selectedKey="3_MONTHS" width="150px">
                 <items>
                     <core:Item key="3_MONTHS" text="Last 3 Months" />
                     <core:Item key="6_MONTHS" text="Last 6 Months" />
                     <core:Item key="1_YEAR" text="Last Year" />
-                    <core:Item key="CUSTOM" text="Custom Range" />
                 </items>
             </ComboBox>
-            <!-- Added Show Linked CheckBox -->
             <CheckBox text="Show Linked" select=".onShowLinkedToggle" selected="false" />
             <Button text="Refresh" icon="sap-icon://refresh" press="._loadReconciliation"/>
         </OverflowToolbar>
         
         <!-- Split View: eML left | eMP right -->
         <HBox class="reconciliationSplitView">
-            <!-- Left Panel: eML (History/Source) -->
+            <!-- Left Panel: eML entries -->
             <VBox width="48%" class="reconciliationPanel">
                 <Toolbar>
-                    <Title text="eML (History)" level="H4"/>
+                    <Title text="eML (Dispensements)" level="H4"/>
                 </Toolbar>
                 
-                <table:TreeTable
+                <table:Table
                     id="reconciliationTree"
-                    rows="{path: 'app>/reconciliationItems', parameters: {arrayNames: ['dispensations']}}"
+                    rows="{path: 'ui>/reconciliation/items'}"
                     selectionMode="None"
                     enableColumnReordering="false"
                     visibleRowCount="10"
                     rowHeight="50">
                     
                     <table:rowSettingsTemplate>
-                        <table:RowSettings highlight="{path: 'app>status', formatter: '.formatRowHighlight'}" />
+                        <table:RowSettings highlight="{path: 'ui>status', formatter: '.formatRowHighlight'}" />
                     </table:rowSettingsTemplate>
 
                     <table:columns>
-                        <!-- Status & Medication -->
+                        <!-- Medication & Status -->
                         <table:Column label="Medication" width="50%">
                             <table:template>
                                 <VBox>
                                     <HBox alignItems="Center">
                                         <core:Icon 
-                                            src="{= ${app>entryType} === 'prescription' ? 'sap-icon://document' : 'sap-icon://product' }"
+                                            src="sap-icon://product"
                                             class="sapUiTinyMarginEnd"
-                                            color="{= ${app>entryType} === 'prescription' ? '#0070F2' : '#107E3E' }"/>
-                                        <Label text="{app>medicationName}" design="Bold"/>
-                                        
-                                        <!-- Substitution Icon -->
-                                        <core:Icon src="sap-icon://compare-2" color="#E69A17" visible="{= ${app>substituted} === true }" class="sapUiTinyMarginBegin" tooltip="Substituted"/>
+                                            color="#107E3E"/>
+                                        <Label text="{ui>medicationName}" design="Bold"/>
+                                        <!-- Substitution indicator -->
+                                        <core:Icon src="sap-icon://compare-2" color="#E69A17" visible="{= ${ui>wasSubstituted} === true }" class="sapUiTinyMarginBegin" tooltip="Substituted"/>
                                     </HBox>
                                     
                                     <HBox class="sapUiTinyMarginTop">
                                         <Label text="PZN:" class="sapUiTinyMarginEnd sapUiTinyText"/>
-                                        <Text text="{app>pzn}" class="sapUiTinyText sapUiTinyMarginEnd"/>
+                                        <Text text="{ui>pzn}" class="sapUiTinyText sapUiTinyMarginEnd"/>
                                         <Label text="ATC:" class="sapUiTinyMarginEnd sapUiTinyText"/>
-                                        <Text text="{app>atcCode}" class="sapUiTinyText"/>
+                                        <Text text="{ui>atcCode}" class="sapUiTinyText"/>
                                     </HBox>
                                     
-                                    <!-- Match Info (Only for Root/Prescription) -->
-                                    <VBox visible="{= ${app>entryType} === 'prescription' }" class="sapUiTinyMarginTop">
+                                    <VBox class="sapUiTinyMarginTop">
                                         <ObjectStatus
-                                            text="{= ${app>status} === 'LINKED' ? 'Linked' : (${app>status} === 'PROPOSAL_MATCH' ? 'Match found' : (${app>status} === 'UNLINKED_UPDATE' ? 'Update available' : 'Not in Plan')) }"
-                                            state="{= ${app>status} === 'LINKED' ? 'Success' : (${app>status} === 'PROPOSAL_MATCH' ? 'Information' : (${app>status} === 'UNLINKED_UPDATE' ? 'Warning' : 'Error')) }"
-                                            icon="{= ${app>status} === 'LINKED' ? 'sap-icon://chain-link' : (${app>status} === 'PROPOSAL_MATCH' ? 'sap-icon://lightbulb' : (${app>status} === 'UNLINKED_UPDATE' ? 'sap-icon://alert' : 'sap-icon://warning')) }"/>
-                                        <Text text="{app>matchReason}" class="sapUiTinyText"/>
+                                            text="{= ${ui>status} === 'LINKED' ? 'Linked' : (${ui>status} === 'PROPOSAL_MATCH' ? 'Match found' : (${ui>status} === 'UNLINKED_UPDATE' ? 'Update available' : 'Not in Plan')) }"
+                                            state="{= ${ui>status} === 'LINKED' ? 'Success' : (${ui>status} === 'PROPOSAL_MATCH' ? 'Information' : (${ui>status} === 'UNLINKED_UPDATE' ? 'Warning' : 'Error')) }"
+                                            icon="{= ${ui>status} === 'LINKED' ? 'sap-icon://chain-link' : (${ui>status} === 'PROPOSAL_MATCH' ? 'sap-icon://lightbulb' : (${ui>status} === 'UNLINKED_UPDATE' ? 'sap-icon://alert' : 'sap-icon://warning')) }"/>
+                                        <Text text="{ui>matchReason}" class="sapUiTinyText"/>
                                     </VBox>
                                 </VBox>
                             </table:template>
@@ -82,10 +77,8 @@
                         <table:Column label="Details" width="25%">
                             <table:template>
                                 <VBox>
-                                    <Text text="{path: 'app>authoredDate', formatter: '.formatter.formatDate'}"/>
-                                    <Text text="{= ${app>prescriberName} || ${app>pharmacyName} }" class="sapUiTinyText"/>
-                                    <Text text="{app>strength}" class="sapUiTinyText"/>
-                                    <Text text="{app>dosageForm}" class="sapUiTinyText"/>
+                                    <Text text="{path: 'ui>dispensedDate', formatter: '.formatter.formatDate'}"/>
+                                    <Text text="{ui>dosage}" class="sapUiTinyText"/>
                                 </VBox>
                             </table:template>
                         </table:Column>
@@ -93,40 +86,22 @@
                         <!-- Actions -->
                         <table:Column label="Actions" width="25%" hAlign="End">
                             <table:template>
-                                <HBox justifyContent="End" visible="{= ${app>entryType} === 'prescription' }">
-                                    <!-- Add to Plan (ORPHAN_NEW) -->
-                                    <Button
-                                        text="Add"
-                                        icon="sap-icon://add"
-                                        type="Emphasized"
-                                        visible="{= ${app>status} === 'ORPHAN_NEW' }"
-                                        press=".onAddToPlanFromTree"
-                                        class="sapUiTinyMarginEnd"/>
-                                    
-                                    <!-- Link (UNLINKED_UPDATE or PROPOSAL_MATCH) -->
+                                <HBox justifyContent="End">
+                                    <!-- Link (PROPOSAL_MATCH or ORPHAN_NEW) -->
                                     <Button
                                         text="Link"
                                         icon="sap-icon://chain-link"
                                         type="Emphasized"
-                                        visible="{= ${app>status} === 'UNLINKED_UPDATE' || ${app>status} === 'PROPOSAL_MATCH' }"
+                                        visible="{= ${ui>status} === 'PROPOSAL_MATCH' || ${ui>status} === 'ORPHAN_NEW' }"
                                         press=".onLinkFromTree"
                                         class="sapUiTinyMarginEnd"/>
                                         
-                                     <!-- Force Link for Orphan (Manual Link) - New Button -->
-                                    <Button
-                                        icon="sap-icon://chain-link"
-                                        type="Transparent"
-                                        tooltip="Manual Link"
-                                        visible="{= ${app>status} === 'ORPHAN_NEW' }"
-                                        press=".onLinkFromTree"
-                                        class="sapUiTinyMarginEnd"/>
-                                    
                                     <!-- Unlink (LINKED) -->
                                     <Button
                                         icon="sap-icon://broken-link"
                                         type="Transparent"
                                         tooltip="Unlink"
-                                        visible="{= ${app>status} === 'LINKED' }"
+                                        visible="{= ${ui>status} === 'LINKED' }"
                                         press=".onUnlinkFromTree"/>
 
                                     <!-- Mark as Error -->
@@ -139,33 +114,26 @@
                             </table:template>
                         </table:Column>
                     </table:columns>
-                </table:TreeTable>
+                </table:Table>
             </VBox>
             
             <!-- Divider -->
             <core:HTML content="&lt;div style='width:4%; display:flex; align-items:center; justify-content:center; background:#f7f7f7;'&gt;&lt;span style='font-size:2em;'&gt;⟷&lt;/span&gt;&lt;/div&gt;"/>
             
-            <!-- Right Panel: eMP (Plan/Target) -->
+            <!-- Right Panel: eMP entries -->
             <VBox width="48%" class="reconciliationPanel">
                 <Toolbar>
                     <Title text="eMP (Current Plan)" level="H4"/>
                 </Toolbar>
                 
                 <List
-                    items="{path: 'app>/medicationPlan/entries'}"
+                    items="{path: 'ui>/reconciliation/empEntries'}"
                     noDataText="No current medication plan">
                     <StandardListItem
-                        title="{app>medicationName}"
-                        description="Status: {app>status} | Dosage: {= ${app>dosageStructured} || ${app>dosageText} }"
+                        title="{ui>medicationName}"
+                        description="{path: 'ui>status', formatter: '.formatter.formatStatus'}"
                         icon="sap-icon://pill"
-                        info="{
-                            parts: [
-                                {path: 'app>linkedEmlIds'},
-                                {path: 'app>/medicationList/entries'}
-                            ],
-                            formatter: '.formatter.formatHistoryCount'
-                        }"
-                        infoState="{= ${app>linkedEmlIds}.length > 0 ? 'Success' : 'None' }"/>
+                        info="PZN: {ui>pzn}"/>
                 </List>
             </VBox>
         </HBox>

@@ -14,11 +14,11 @@
             <Button text="AMTS Check" icon="sap-icon://stethoscope" press=".onAMTSCheck"/>
         </OverflowToolbar>
         
-        <!-- eMP Table -->
+        <!-- eMP Table — items bound to 'ui' model (plain derived array) -->
         <Table
             id="empTable"
             items="{
-                path: 'app>/medicationPlan/entries',
+                path: 'ui>/medicationPlan/entries',
                 sorter: {
                     path: 'status',
                     descending: false,
@@ -31,57 +31,43 @@
                 <Column width="4rem"><Text text="Status"/></Column>
                 <Column><Text text="Medication"/></Column>
                 <Column minScreenWidth="Tablet" demandPopin="true"><Text text="Dosage"/></Column>
-                <Column minScreenWidth="Tablet" demandPopin="true"><Text text="Reason/Note"/></Column>
+                <Column minScreenWidth="Tablet" demandPopin="true"><Text text="PZN / ATC"/></Column>
                 <Column width="15%" hAlign="End"><Text text="Actions"/></Column>
             </columns>
             
             <items>
                 <ColumnListItem>
                     <cells>
-                        <!-- Status Icon -->
+                        <!-- Status Icon — FHIR R4 statuses: active, on-hold, stopped, completed, cancelled, entered-in-error, draft, unknown -->
                         <core:Icon
-                            src="{= ${app>status} === 'active' ? 'sap-icon://sys-enter-2' : (${app>status} === 'paused' ? 'sap-icon://pause' : 'sap-icon://future') }"
-                            color="{= ${app>status} === 'active' ? '#107E3E' : (${app>status} === 'paused' ? '#E69A17' : '#0070F2') }"
-                            tooltip="{app>status}"/>
+                            src="{= ${ui>status} === 'active' ? 'sap-icon://sys-enter-2' : (${ui>status} === 'on-hold' ? 'sap-icon://pause' : 'sap-icon://future') }"
+                            color="{= ${ui>status} === 'active' ? '#107E3E' : (${ui>status} === 'on-hold' ? '#E69A17' : '#0070F2') }"
+                            tooltip="{path: 'ui>status', formatter: '.formatter.formatStatus'}"/>
                             
                         <!-- Medication Info -->
                         <VBox>
                             <HBox alignItems="Center">
-                                <Text text="{app>medicationName}" class="sapUiTinyMarginBottom sapUiTinyMarginEnd sapMTextBold" wrapping="false"/>
-                                <ObjectStatus
-                                    text="{
-                                        parts: [
-                                            {path: 'app>linkedEmlIds'},
-                                            {path: 'app>/medicationList/entries'}
-                                        ],
-                                        formatter: '.formatter.formatHistoryCount'
-                                    }"
-                                    state="Information"
-                                    icon="sap-icon://chain-link"
-                                    visible="{= ${app>linkedEmlIds}.length > 0 }"
-                                    active="true"
-                                    press=".onShowLinkedHistory"
-                                    class="sapUiTinyMarginBottom"/>
+                                <Text text="{ui>medicationName}" class="sapUiTinyMarginBottom sapUiTinyMarginEnd sapMTextBold" wrapping="false"/>
                             </HBox>
-                            <Text text="{app>activeIngredient} • {app>strength}" class="sapUiTinyText"/>
+                            <Text text="PZN: {ui>pzn}" class="sapUiTinyText"/>
                         </VBox>
                         
                         <!-- Dosage -->
-                        <Text text="{= ${app>dosageStructured} || ${app>dosageText} }"/>
+                        <Text text="{= ${ui>dosageText} || ${ui>dosageStructured} }"/>
                         
-                        <!-- Reason/Note -->
+                        <!-- PZN / ATC -->
                         <VBox>
-                            <Text text="{app>reasonForPause}" visible="{= ${app>status} === 'paused'}" class="sapUiTinyText"/>
-                            <Text text="{app>note}" visible="{= !!${app>note}}" class="sapUiTinyText"/>
+                            <Text text="{ui>pzn}" class="sapUiTinyText"/>
+                            <Text text="{ui>atcCode}" class="sapUiTinyText"/>
                         </VBox>
                         
                         <!-- Actions -->
                         <HBox justifyContent="End">
                             <Button icon="sap-icon://edit" type="Transparent" tooltip="Edit" press=".onEditMedication"/>
                             <Button 
-                                icon="{= ${app>status} === 'active' ? 'sap-icon://pause' : 'sap-icon://play' }" 
+                                icon="{= ${ui>status} === 'active' ? 'sap-icon://pause' : 'sap-icon://play' }" 
                                 type="Transparent"
-                                tooltip="{= ${app>status} === 'active' ? 'Pause' : 'Reactivate' }"
+                                tooltip="{= ${ui>status} === 'active' ? 'Pause' : 'Reactivate' }"
                                 press=".onPauseMedication"/>
                             <Button icon="sap-icon://delete" type="Transparent" tooltip="Delete" press=".onDeleteMedication"/>
                         </HBox>
@@ -89,10 +75,5 @@
                 </ColumnListItem>
             </items>
         </Table>
-        
-        <HBox alignItems="Center" class="sapUiTinyMarginTop">
-            <Label text="Last updated:" class="sapUiTinyMarginEnd"/>
-            <Text text="{path: 'app>/medicationPlan/lastUpdated', formatter: '.formatter.formatDate'}" class="sapUiTinyText"/>
-        </HBox>
     </VBox>
 </mvc:View>

@@ -29,15 +29,15 @@
                             
                             <List
                                 id="recentPatientsList"
-                                items="{app>/recentPatients}"
+                                items="{ui>/recentPatients}"
                                 mode="SingleSelectMaster"
                                 selectionChange=".onRecentPatientSelect"
                                 noDataText="No recent patients searched yet.">
                                 
                                 <StandardListItem
-                                    title="{app>firstName} {app>lastName}"
-                                    description="KVNR: {app>kvnr}"
-                                    info="{app>dateOfBirth}"
+                                    title="{ui>firstName} {ui>lastName}"
+                                    description="KVNR: {ui>kvnr}"
+                                    info="{ui>birthDate}"
                                     type="Navigation" />
                             </List>
                         </VBox>
@@ -45,7 +45,7 @@
                         <!-- Patient Data Tabs (visible when patient selected) -->
                         <IconTabBar
                             id="patientDataTabs"
-                            visible="{app>/patientSelected}"
+                            visible="{ui>/patientSelected}"
                             class="sapUiMediumMarginTop"
                             expandable="false">
                             <items>

@@ -1,55 +1,23 @@
 package de.servicehealth.epa.medication.model;
 
-import java.util.List;
-
 /**
- * Represents a detected duplicate match during medication addition.
+ * Result of a duplicate-detection check against the in-memory plan bundle.
  */
 public class DuplicateMatch {
 
-    private boolean isDuplicate;
-    private String matchType; // "PZN", "ATC", "ASK"
-    private MedicationRequest existingEntry;
-    private List<MedicationRequest> conflictingEntries;
+    private final boolean duplicate;
+    private final String matchType; // "PZN", "ATC", or null
 
-    public DuplicateMatch() {
-    }
-
-    public DuplicateMatch(boolean isDuplicate, String matchType, MedicationRequest existingEntry) {
-        this.isDuplicate = isDuplicate;
+    public DuplicateMatch(boolean duplicate, String matchType) {
+        this.duplicate = duplicate;
         this.matchType = matchType;
-        this.existingEntry = existingEntry;
     }
 
     public boolean isDuplicate() {
-        return isDuplicate;
-    }
-
-    public void setDuplicate(boolean duplicate) {
-        isDuplicate = duplicate;
+        return duplicate;
     }
 
     public String getMatchType() {
         return matchType;
-    }
-
-    public void setMatchType(String matchType) {
-        this.matchType = matchType;
-    }
-
-    public MedicationRequest getExistingEntry() {
-        return existingEntry;
-    }
-
-    public void setExistingEntry(MedicationRequest existingEntry) {
-        this.existingEntry = existingEntry;
-    }
-
-    public List<MedicationRequest> getConflictingEntries() {
-        return conflictingEntries;
-    }
-
-    public void setConflictingEntries(List<MedicationRequest> conflictingEntries) {
-        this.conflictingEntries = conflictingEntries;
     }
 }
