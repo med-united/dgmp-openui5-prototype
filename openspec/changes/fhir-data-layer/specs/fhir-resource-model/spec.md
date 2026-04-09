@@ -33,33 +33,68 @@ Each eMP entry SHALL be represented as a `MedicationRequest` resource.
 
 #### Scenario: Required fields
 - **WHEN** a `MedicationRequest` is created
-- **THEN** it SHALL contain `id` (logical resource ID), `status` (`active` | `on-hold` | `stopped`), `intent` (`order`), `subject` (Reference to Patient), `authoredOn` (ISO 8601), and `medicationCodeableConcept`
+- **THEN** it SHALL contain `id` (logical resource ID), `status` (`active` | `on-hold` | `stopped` | `draft` | `completed`), `intent` (`order`), `subject` (Reference to Patient), `authoredOn` (ISO 8601), and `medicationReference` (Reference to `Medication`)
+- **AND** it SHALL carry a `meta.profile` element naming the applicable profile URL
 
-#### Scenario: Medication coding
-- **WHEN** a `MedicationRequest` carries medication coding
-- **THEN** `medicationCodeableConcept.coding` SHALL contain an entry with `system = "http://fhir.de/CodeSystem/ifa/pzn"` for the PZN
-- **AND** `medicationCodeableConcept.coding` SHALL contain an entry with `system = "http://www.whocc.no/atc"` for the ATC code
-- **AND** `medicationCodeableConcept.text` SHALL carry the human-readable medication name
+#### Scenario: Medication reference
+- **WHEN** a `MedicationRequest` references medication data
+- **THEN** `medicationReference` SHALL be a `Reference` to a `Medication` resource (e.g. `Medication/med-pzn-01476329`)
+- **AND** the referenced `Medication` resource SHALL be included in the Bundle with `search.mode = "include"`
+- **AND** medication name, PZN, ATC, dosage form, and ingredient data SHALL be sourced from the resolved `Medication` resource (not inline on `MedicationRequest`)
 
 #### Scenario: Dosage
 - **WHEN** a `MedicationRequest` has structured dosage
 - **THEN** `dosageInstruction[0].text` SHALL carry the rendered dosage string (e.g. `"1-0-1-0"`)
-- **AND** `dosageInstruction[0].additionalInstruction` SHALL carry free-text intake notes
+- **AND** `dosageInstruction[0].additionalInstruction` SHOULD carry free-text intake notes where applicable
+
+#### Scenario: Medication plan identifier
+- **WHEN** a `MedicationRequest` is created
+- **THEN** `identifier` SHALL contain an entry with `system = "https://gematik.de/fhir/sid/emp-identifier"` and `value` = a UUID
+
+#### Scenario: Provenance reference (Phase 2+)
+- **WHEN** a `MedicationRequest` has been written by the server
+- **THEN** `supportingInformation` MAY carry a reference to `EMPChronologyProvenance` representing the current `chronologyId`
+- **AND** Phase 1 fixtures are exempt from this requirement (provenance is server-generated)
 
 ---
 
-### Requirement: MedicationStatement Resource Shape (eML Prescription)
+### Requirement: Medication Resource Shape
 
-Each eML prescription event SHALL be represented as a `MedicationStatement` resource.
+Each medication SHALL be represented as a `Medication` resource conforming to the `KBV_PR_ERP_Medication_PZN` profile (version 1.1.0).
 
-#### Scenario: Required fields
-- **WHEN** a `MedicationStatement` is created
-- **THEN** it SHALL contain `id`, `status` (`active` | `completed`), `subject` (Reference to Patient), `dateAsserted` (ISO 8601), `medicationCodeableConcept`, and `informationSource` (Reference to practitioner or organization)
+#### Scenario: Profile conformance
+- **WHEN** a `Medication` resource is created
+- **THEN** it SHALL carry `meta.profile` naming `https://fhir.kbv.de/StructureDefinition/KBV_PR_ERP_Medication_PZN|1.1.0`
 
-#### Scenario: Link to eMP entry
-- **WHEN** a `MedicationStatement` is hard-linked to a `MedicationRequest`
-- **THEN** `basedOn` SHALL contain a `Reference` to `MedicationRequest/<id>`
-- **AND** `basedOn[0]` SHALL carry the extension `https://gematik.de/fhir/epa-medication/StructureDefinition/is-emp` with `valueBoolean = true`
+#### Scenario: Mandatory extensions
+- **WHEN** a `Medication` resource is created
+- **THEN** it SHALL include the following extensions:
+  - `KBV_EX_ERP_Medication_Category` (`valueCoding` with code `"00"` for Arzneimittel)
+  - `KBV_EX_ERP_Medication_Vaccine` (`valueBoolean` = `false` for non-vaccine)
+  - `http://fhir.de/StructureDefinition/normgroesse` (`valueCode` = `N1` | `N2` | `N3`)
+  - `KBV_EX_Base_Medication_Type` (`valueCoding` with SNOMED code `763158003` = Medicinal product)
+
+#### Scenario: Code (PZN) — closed slicing
+- **WHEN** a `Medication` resource carries a PZN code
+- **THEN** `code.coding` SHALL contain exactly one entry in the `pznCode` slice with `system = "http://fhir.de/CodeSystem/ifa/pzn"`
+- **AND** `code.text` SHALL carry the human-readable medication name
+- **AND** no additional codings (ATC, SNOMED) SHALL be present in `code.coding` (the slicing is CLOSED)
+
+#### Scenario: Packaging size
+- **WHEN** a `Medication` resource specifies packaging
+- **THEN** `amount.numerator` SHALL use the `KBV_EX_ERP_Medication_PackagingSize` extension with a `valueString` (e.g. `"100"`)
+- **AND** `amount.numerator.value` SHALL NOT be present (prohibited by the profile)
+- **AND** `amount.denominator.value` SHALL be `1`
+
+#### Scenario: Dosage form
+- **WHEN** a `Medication` resource has a dosage form
+- **THEN** `form.coding` SHALL use `system = "https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_DARREICHUNGSFORM"` with a code from the `KBV_VS_SFHIR_KBV_DARREICHUNGSFORM` ValueSet
+- **AND** `display` SHALL match the canonical display name for the code
+
+#### Scenario: Prohibited elements
+- **WHEN** a `Medication` resource conforms to `KBV_PR_ERP_Medication_PZN`
+- **THEN** `Medication.text` SHALL NOT be present (`max=0`)
+- **AND** `Medication.ingredient` SHALL NOT be present (`max=0`)
 
 ---
 
@@ -69,12 +104,20 @@ Each eML dispensement event SHALL be represented as a `MedicationDispense` resou
 
 #### Scenario: Required fields
 - **WHEN** a `MedicationDispense` is created
-- **THEN** it SHALL contain `id`, `status` (`completed`), `subject` (Reference to Patient), `whenHandedOver` (ISO 8601), `medicationCodeableConcept`, and `performer`
+- **THEN** it SHALL contain `id`, `status` (`completed`), `subject` (Reference to Patient), `whenHandedOver` (ISO 8601), `medicationReference` (Reference to `Medication`), and `performer`
 
 #### Scenario: Link to authorizing prescription
 - **WHEN** a `MedicationDispense` results from a prescription
 - **THEN** `authorizingPrescription` SHALL contain a `Reference` to `MedicationRequest/<id>` (the eMP entry)
-- **AND** `partOf` SHALL contain a `Reference` to `MedicationStatement/<id>` (the parent prescription event)
+
+#### Scenario: Dosage display precedence
+- **WHEN** rendering dosage for an eML entry
+- **THEN** `MedicationDispense.dosageInstruction[0].text` SHALL be used if present
+- **AND** the display SHALL fall back to `MedicationRequest.dosageInstruction[0].text` only if no dispense dosage is present
+
+#### Scenario: Medication display precedence
+- **WHEN** a dispensement exists for a prescription
+- **THEN** `MedicationDispense.medicationReference → Medication` SHALL take precedence over `MedicationRequest.medicationReference → Medication` for displaying medication name, PZN, and dosage form
 
 #### Scenario: Substitution flag
 - **WHEN** a dispensement involved substitution
@@ -119,23 +162,11 @@ All multi-resource responses from the mock server SHALL use FHIR `Bundle` resour
 
 ### Requirement: medicationPlanIdentifier Extension
 
-The shared link identifier between `MedicationStatement` and `MedicationRequest` SHALL use a canonical FHIR `Identifier` element.
+The eMP identifier on a `MedicationRequest` SHALL use a canonical FHIR `Identifier` element so that clients can correlate eMP entries with their corresponding eML dispenses.
 
 #### Scenario: Identifier structure
-- **WHEN** a `MedicationRequest` or `MedicationStatement` carries a medication plan identifier
+- **WHEN** a `MedicationRequest` carries a medication plan identifier
 - **THEN** `identifier` SHALL contain an entry with `system = "https://gematik.de/fhir/sid/emp-identifier"` and `value` = a UUID (format `urn:uuid:<uuid>` or bare UUID)
-- **AND** this identifier SHALL be the same value on both the `MedicationRequest` and its linked `MedicationStatement`
-
----
-
-### Requirement: isEMP Extension URL
-
-The flag marking a `MedicationStatement.basedOn` reference as pointing to an eMP entry SHALL use the canonical ePA IG extension URL.
-
-#### Scenario: Extension on basedOn
-- **WHEN** a `MedicationStatement` is hard-linked to a `MedicationRequest`
-- **THEN** `basedOn[0].extension` SHALL contain `{"url": "https://gematik.de/fhir/epa-medication/StructureDefinition/is-emp", "valueBoolean": true}`
-- **AND** this extension SHALL NOT be present on `basedOn` references that are not eMP links
 
 ---
 
@@ -151,7 +182,7 @@ All static test data SHALL be stored as FHIR R4 `Bundle` resources.
 #### Scenario: Medication list fixture
 - **WHEN** the mock server loads a patient's eML data
 - **THEN** it SHALL read from `src/main/resources/fixtures/medication-list-<kvnr>.json`
-- **AND** that file SHALL be a FHIR `Bundle` of type `searchset` containing `MedicationStatement` and `MedicationDispense` entries
+- **AND** that file SHALL be a FHIR `Bundle` of type `searchset` containing `MedicationDispense` entries (mode=match), included `MedicationRequest` entries (mode=include), included `Medication` entries (mode=include), and optionally `MedicationStatement` entries (mode=include, present when `_revinclude=MedicationStatement:derived-from` is requested)
 
 #### Scenario: Patient fixture
 - **WHEN** the mock server loads patient data

@@ -4,12 +4,12 @@ This project is a prototype for the German Electronic Patient Record (ePA) Medic
 
 ## Tech Stack
 
-- **Backend**: Java 17, Quarkus (RESTEasy Reactive, Jackson)
+- **Backend**: Java 21, Quarkus (RESTEasy Reactive, Jackson)
 - **Frontend**: SAPUI5 (OpenUI5)
 
 ## What is this?
 
-This is a UI prototype for the **German ePA (electronic patient record) Medication Service**, implementing the *dgMP* (digitales Medikationsprozess) use cases defined in the Implementation Guide ePA Medication Service v1.3.0. It simulates the daily workflow of physicians and pharmacists who view, manage, and reconcile a patient's **electronic Medication List (eML)** — historical prescriptions and dispensements — and **electronic Medication Plan (eMP)** — the current active therapy plan. The backend uses in-memory JSON fixtures and does not connect to a real TI infrastructure.
+This is a UI prototype for the **German ePA (electronic patient record) Medication Service**, implementing the *dgMP* (digitales Medikationsprozess) use cases defined in the Implementation Guide ePA Medication Service v1.3.0. It simulates the daily workflow of physicians and pharmacists who view, manage, and reconcile a patient's **electronic Medication List (eML)** — historical prescriptions and dispensements — and **electronic Medication Plan (eMP)** — the current active therapy plan. The backend uses in-memory FHIR R4 JSON fixtures (FHIR Bundle with Medication, MedicationRequest, MedicationStatement, MedicationDispense resources) and does not connect to a real TI infrastructure.
 
 ## dgMP Use Cases
 
@@ -63,7 +63,7 @@ This is a UI prototype for the **German ePA (electronic patient record) Medicati
 
 ### Prerequisites
 
-- Java 17+
+- Java 21+
 - Maven 3.8+
 
 ### Running the Application

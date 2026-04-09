@@ -33,66 +33,6 @@
                 ],
                 "birthDate": "1975-08-12"
             }
-        },
-        {
-            "fullUrl": "https://example.org/fhir/Patient/Y987654321",
-            "search": {
-                "mode": "match"
-            },
-            "resource": {
-                "resourceType": "Patient",
-                "id": "Y987654321",
-                "text": {
-                    "status": "generated",
-                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
-                },
-                "identifier": [
-                    {
-                        "system": "http://fhir.de/sid/gkv/kvid-10",
-                        "value": "Y987654321"
-                    }
-                ],
-                "name": [
-                    {
-                        "use": "official",
-                        "family": "Beispiel",
-                        "given": [
-                            "Max"
-                        ]
-                    }
-                ],
-                "birthDate": "1989-03-25"
-            }
-        },
-        {
-            "fullUrl": "https://example.org/fhir/Patient/Z555111222",
-            "search": {
-                "mode": "match"
-            },
-            "resource": {
-                "resourceType": "Patient",
-                "id": "Z555111222",
-                "text": {
-                    "status": "generated",
-                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">See structured data</div>"
-                },
-                "identifier": [
-                    {
-                        "system": "http://fhir.de/sid/pkv/kvid-10",
-                        "value": "Z555111222"
-                    }
-                ],
-                "name": [
-                    {
-                        "use": "official",
-                        "family": "Test",
-                        "given": [
-                            "Anna"
-                        ]
-                    }
-                ],
-                "birthDate": "1992-11-05"
-            }
         }
     ]
 }

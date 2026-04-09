@@ -171,7 +171,7 @@
                                         <argument>urn:iso:std:iso:3166#DE</argument>
                                         <!-- HL7 DE base: PZN, KVNR and other German code systems -->
                                         <argument>-ig</argument>
-                                        <argument>de.basisprofil.r4#1.5.0</argument>
+                                        <argument>de.basisprofil.r4#1.5.4</argument>
                                         <!-- KBV basis: dosage units (KBV_CS_SFHIR_BMP_DOSIEREINHEIT), drug forms -->
                                         <argument>-ig</argument>
                                         <argument>kbv.basis#1.6.0</argument>
@@ -183,19 +183,15 @@
                                         <argument>de.gematik.erezept-workflow.r4#1.2.0</argument>
                                         <!-- TI Terminology: mandatory per A_27447, value sets for ePA services -->
                                         <argument>-ig</argument>
-                                        <argument>de.gematik.terminology#1.0.7</argument>
-                                        <!-- ePA Basic: epa-activity-provenance and other base profiles -->
+                                        <argument>de.gematik.terminology#1.0.8</argument>
+                                        <!-- ePA Basic: required by epa.medication#1.3.0 -->
                                         <argument>-ig</argument>
-                                        <argument>de.gematik.epa#1.2.0</argument>
+                                        <argument>de.gematik.epa#1.3.0</argument>
                                         <!-- ePA Medication Service 1.3.0 (1.3.2 is unpublished and loads 0 resources) -->
                                         <argument>-ig</argument>
                                         <argument>de.gematik.epa.medication#1.3.0</argument>
                                         <argument>${project.basedir}/src/main/resources/fixtures/medication-plan-X123456789.json</argument>
-                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-plan-Y987654321.json</argument>
-                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-plan-Z555111222.json</argument>
                                         <argument>${project.basedir}/src/main/resources/fixtures/medication-list-X123456789.json</argument>
-                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-list-Y987654321.json</argument>
-                                        <argument>${project.basedir}/src/main/resources/fixtures/medication-list-Z555111222.json</argument>
                                         <argument>${project.basedir}/src/main/resources/fixtures/patients.json</argument>
                                     </arguments>
                                 </configuration>

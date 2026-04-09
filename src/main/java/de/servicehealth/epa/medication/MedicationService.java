@@ -2,6 +2,8 @@ package de.servicehealth.epa.medication;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import de.servicehealth.epa.medication.model.DuplicateMatch;
 import de.servicehealth.epa.medication.model.MedicationList;
@@ -40,13 +42,14 @@ public class MedicationService {
 
     private final ConcurrentHashMap<String, MedicationList> medicationCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, MedicationPlan> medicationPlanCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, EMPChronologyProvenance> chronologyCache = new ConcurrentHashMap<>(); // Current
-                                                                                                                  // chronology
-                                                                                                                  // state
-                                                                                                                  // per
-                                                                                                                  // KVNR
-    private final List<EPAActivityProvenance> activityLog = new ArrayList<>(); // Audit log
+    private final ConcurrentHashMap<String, EMPChronologyProvenance> chronologyCache = new ConcurrentHashMap<>();
+    private final List<EPAActivityProvenance> activityLog = new ArrayList<>();
     private final ObjectMapper objectMapper;
+
+    // Raw FHIR bundle storage (for /fhir/ endpoints)
+    private final ConcurrentHashMap<String, JsonNode> rawMedicationListBundles = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, JsonNode> rawMedicationPlanBundles = new ConcurrentHashMap<>();
+    private volatile JsonNode rawPatientBundle;
 
     public MedicationService() {
         this.objectMapper = new ObjectMapper();
@@ -214,6 +217,19 @@ public class MedicationService {
         loadPlanFixture("X123456789");
         loadPlanFixture("Y987654321");
         loadPlanFixture("Z555111222");
+
+        // Patient bundle
+        loadPatientBundle();
+    }
+
+    private void loadPatientBundle() {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("fixtures/patients.json")) {
+            if (is != null) {
+                rawPatientBundle = objectMapper.readTree(is);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to load patient bundle: " + e.getMessage());
+        }
     }
 
     /**
@@ -226,6 +242,7 @@ public class MedicationService {
         try (InputStream is = getClass().getResourceAsStream(filename)) {
             if (is != null) {
                 JsonNode bundle = objectMapper.readTree(is);
+                rawMedicationListBundles.put(kvnr, bundle);
                 MedicationList medicationList = parseFhirMedicationList(bundle, kvnr);
                 medicationList.sortByAuthoredDateDesc();
                 medicationCache.put(kvnr, medicationList);
@@ -250,6 +267,7 @@ public class MedicationService {
         try (InputStream is = getClass().getResourceAsStream(filename)) {
             if (is != null) {
                 JsonNode bundle = objectMapper.readTree(is);
+                rawMedicationPlanBundles.put(kvnr, bundle);
                 MedicationPlan medicationPlan = parseFhirMedicationPlan(bundle, kvnr);
                 medicationPlanCache.put(kvnr, medicationPlan);
                 System.out.println("Loaded medication plan for KVNR: " + kvnr +
@@ -272,12 +290,13 @@ public class MedicationService {
         plan.setKvnr(kvnr);
         plan.setVersion(1);
 
+        Map<String, JsonNode> medications = collectMedications(bundle);
         JsonNode entries = bundle.path("entry");
         if (entries.isArray()) {
             for (JsonNode entry : entries) {
                 JsonNode resource = entry.path("resource");
                 if ("MedicationRequest".equals(resource.path("resourceType").asText())) {
-                    plan.addEntry(fhirRequestToMedicationRequest(resource));
+                    plan.addEntry(fhirRequestToMedicationRequest(resource, medications));
                 }
             }
         }
@@ -286,6 +305,8 @@ public class MedicationService {
 
     private MedicationList parseFhirMedicationList(JsonNode bundle, String kvnr) {
         MedicationList list = new MedicationList(kvnr);
+
+        Map<String, JsonNode> medications = collectMedications(bundle);
 
         // First pass: collect prescriptions (MedicationStatement) by id
         // and dispenses (MedicationDispense) keyed by their partOf reference id
@@ -298,10 +319,10 @@ public class MedicationService {
                 JsonNode resource = entry.path("resource");
                 String resourceType = resource.path("resourceType").asText();
                 if ("MedicationStatement".equals(resourceType)) {
-                    MedicationStatement stmt = fhirStatementToMedicationStatement(resource);
+                    MedicationStatement stmt = fhirStatementToMedicationStatement(resource, medications);
                     prescriptions.put(stmt.getId(), stmt);
                 } else if ("MedicationDispense".equals(resourceType)) {
-                    MedicationStatement disp = fhirDispenseToMedicationStatement(resource);
+                    MedicationStatement disp = fhirDispenseToMedicationStatement(resource, medications);
                     dispenses.put(disp.getId(), disp);
                 }
             }
@@ -345,14 +366,24 @@ public class MedicationService {
         return list;
     }
 
-    private MedicationRequest fhirRequestToMedicationRequest(JsonNode r) {
+    private MedicationRequest fhirRequestToMedicationRequest(JsonNode r, Map<String, JsonNode> medications) {
         MedicationRequest req = new MedicationRequest();
         req.setId(r.path("id").asText(null));
 
-        JsonNode med = r.path("medicationCodeableConcept");
-        req.setMedicationName(med.path("text").asText(null));
-        req.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
-        req.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+        JsonNode medNode = resolveMedication(r, medications);
+        if (medNode != null) {
+            JsonNode code = medNode.path("code");
+            req.setMedicationName(code.path("text").asText(null));
+            req.setPzn(extractCoding(code, "http://fhir.de/CodeSystem/ifa/pzn"));
+            req.setAtcCode(extractCoding(code, "http://www.whocc.no/atc"));
+            req.setActiveIngredient(extractActiveIngredient(medNode));
+            req.setStrength(extractStrength(medNode));
+        } else {
+            JsonNode med = r.path("medicationCodeableConcept");
+            req.setMedicationName(med.path("text").asText(null));
+            req.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
+            req.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+        }
 
         req.setStatus(mapFhirStatus(r.path("status").asText("active")));
 
@@ -380,7 +411,7 @@ public class MedicationService {
 
         String authoredOn = r.path("authoredOn").asText(null);
         if (authoredOn != null && !authoredOn.isEmpty()) {
-            req.setAuthoredDate(Instant.parse(authoredOn));
+            req.setAuthoredDate(parseInstant(authoredOn));
         }
 
         req.setMedicationPlanIdentifier(extractIdentifier(r, "https://gematik.de/fhir/sid/emp-identifier"));
@@ -396,15 +427,26 @@ public class MedicationService {
         return req;
     }
 
-    private MedicationStatement fhirStatementToMedicationStatement(JsonNode r) {
+    private MedicationStatement fhirStatementToMedicationStatement(JsonNode r, Map<String, JsonNode> medications) {
         MedicationStatement stmt = new MedicationStatement();
         stmt.setId(r.path("id").asText(null));
         stmt.setEntryType("prescription");
 
-        JsonNode med = r.path("medicationCodeableConcept");
-        stmt.setMedicationName(med.path("text").asText(null));
-        stmt.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
-        stmt.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+        JsonNode medNode = resolveMedication(r, medications);
+        if (medNode != null) {
+            JsonNode code = medNode.path("code");
+            stmt.setMedicationName(code.path("text").asText(null));
+            stmt.setPzn(extractCoding(code, "http://fhir.de/CodeSystem/ifa/pzn"));
+            stmt.setAtcCode(extractCoding(code, "http://www.whocc.no/atc"));
+            stmt.setActiveIngredient(extractActiveIngredient(medNode));
+            stmt.setStrength(extractStrength(medNode));
+            stmt.setDosageForm(extractDosageForm(medNode));
+        } else {
+            JsonNode med = r.path("medicationCodeableConcept");
+            stmt.setMedicationName(med.path("text").asText(null));
+            stmt.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
+            stmt.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+        }
 
         String dateAsserted = r.path("dateAsserted").asText(null);
         if (dateAsserted != null && !dateAsserted.isEmpty()) {
@@ -426,15 +468,26 @@ public class MedicationService {
         return stmt;
     }
 
-    private MedicationStatement fhirDispenseToMedicationStatement(JsonNode r) {
+    private MedicationStatement fhirDispenseToMedicationStatement(JsonNode r, Map<String, JsonNode> medications) {
         MedicationStatement disp = new MedicationStatement();
         disp.setId(r.path("id").asText(null));
         disp.setEntryType("dispensement");
 
-        JsonNode med = r.path("medicationCodeableConcept");
-        disp.setMedicationName(med.path("text").asText(null));
-        disp.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
-        disp.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+        JsonNode medNode = resolveMedication(r, medications);
+        if (medNode != null) {
+            JsonNode code = medNode.path("code");
+            disp.setMedicationName(code.path("text").asText(null));
+            disp.setPzn(extractCoding(code, "http://fhir.de/CodeSystem/ifa/pzn"));
+            disp.setAtcCode(extractCoding(code, "http://www.whocc.no/atc"));
+            disp.setActiveIngredient(extractActiveIngredient(medNode));
+            disp.setStrength(extractStrength(medNode));
+            disp.setDosageForm(extractDosageForm(medNode));
+        } else {
+            JsonNode med = r.path("medicationCodeableConcept");
+            disp.setMedicationName(med.path("text").asText(null));
+            disp.setPzn(extractCoding(med, "http://fhir.de/CodeSystem/ifa/pzn"));
+            disp.setAtcCode(extractCoding(med, "http://www.whocc.no/atc"));
+        }
 
         String whenHandedOver = r.path("whenHandedOver").asText(null);
         if (whenHandedOver != null && !whenHandedOver.isEmpty()) {
@@ -457,6 +510,86 @@ public class MedicationService {
         }
 
         return disp;
+    }
+
+    /** Collect all Medication resources from a Bundle, keyed by their id. */
+    private Map<String, JsonNode> collectMedications(JsonNode bundle) {
+        Map<String, JsonNode> result = new HashMap<>();
+        JsonNode entries = bundle.path("entry");
+        if (entries.isArray()) {
+            for (JsonNode entry : entries) {
+                JsonNode resource = entry.path("resource");
+                if ("Medication".equals(resource.path("resourceType").asText())) {
+                    String id = resource.path("id").asText("");
+                    if (!id.isEmpty()) result.put(id, resource);
+                }
+            }
+        }
+        return result;
+    }
+
+    /** Resolve medicationReference to a Medication node from the collected map. Returns null if not found or no reference. */
+    private JsonNode resolveMedication(JsonNode r, Map<String, JsonNode> medications) {
+        JsonNode ref = r.path("medicationReference");
+        if (!ref.isMissingNode()) {
+            String refStr = ref.path("reference").asText("");
+            if (!refStr.isEmpty()) {
+                String medId = refStr.contains("/") ? refStr.substring(refStr.lastIndexOf('/') + 1) : refStr;
+                return medications.get(medId);
+            }
+        }
+        return null;
+    }
+
+    /** Extract active ingredient name from Medication.ingredient[0].itemCodeableConcept. */
+    private String extractActiveIngredient(JsonNode med) {
+        JsonNode ingredients = med.path("ingredient");
+        if (ingredients.isArray() && ingredients.size() > 0) {
+            JsonNode item = ingredients.get(0).path("itemCodeableConcept");
+            String text = item.path("text").asText(null);
+            if (text != null) return text;
+            JsonNode codingArr = item.path("coding");
+            if (codingArr.isArray() && codingArr.size() > 0) {
+                return codingArr.get(0).path("display").asText(null);
+            }
+        }
+        return null;
+    }
+
+    /** Extract strength as "value unit" from Medication.ingredient[0].strength.numerator. */
+    private String extractStrength(JsonNode med) {
+        JsonNode ingredients = med.path("ingredient");
+        if (ingredients.isArray() && ingredients.size() > 0) {
+            JsonNode numerator = ingredients.get(0).path("strength").path("numerator");
+            if (!numerator.isMissingNode()) {
+                double value = numerator.path("value").asDouble(0);
+                String unit = numerator.path("unit").asText(null);
+                if (unit == null) unit = numerator.path("code").asText(null);
+                if (value > 0 && unit != null) {
+                    long longVal = (long) value;
+                    return (value == longVal ? String.valueOf(longVal) : String.valueOf(value)) + " " + unit;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Extract dosage form display from Medication.form.coding, preferring the KBV system. */
+    private String extractDosageForm(JsonNode med) {
+        JsonNode codingArr = med.path("form").path("coding");
+        if (!codingArr.isArray()) return null;
+        String kbvSystem = "https://fhir.kbv.de/CodeSystem/KBV_CS_SFHIR_KBV_DARREICHUNGSFORM";
+        for (JsonNode coding : codingArr) {
+            if (kbvSystem.equals(coding.path("system").asText())) {
+                String display = coding.path("display").asText(null);
+                return display != null ? display : coding.path("code").asText(null);
+            }
+        }
+        for (JsonNode coding : codingArr) {
+            String display = coding.path("display").asText(null);
+            if (display != null) return display;
+        }
+        return null;
     }
 
     /** Extract the code for a given coding system from a medicationCodeableConcept node. */
@@ -483,6 +616,16 @@ public class MedicationService {
             }
         }
         return null;
+    }
+
+    /** Parse an ISO date/datetime string to Instant, accepting date-only ("2026-01-15") or full datetime. */
+    private Instant parseInstant(String value) {
+        try {
+            return Instant.parse(value);
+        } catch (java.time.format.DateTimeParseException e) {
+            // date-only format "YYYY-MM-DD"
+            return java.time.LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant();
+        }
     }
 
     /** Extract valueCode from a named extension on a FHIR resource. */
@@ -1030,5 +1173,260 @@ public class MedicationService {
                 throw new IllegalArgumentException("MEDSVC_DOSAGE_INVALID");
             }
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Raw FHIR bundle access (for /fhir/ endpoints)
+    // -------------------------------------------------------------------------
+
+    public ObjectMapper getObjectMapper() {
+        return objectMapper;
+    }
+
+    public Optional<JsonNode> getRawMedicationPlanBundle(String kvnr) {
+        return Optional.ofNullable(rawMedicationPlanBundles.get(kvnr));
+    }
+
+    public Optional<JsonNode> getRawMedicationListBundle(String kvnr) {
+        return Optional.ofNullable(rawMedicationListBundles.get(kvnr));
+    }
+
+    public JsonNode getRawPatientBundle() {
+        return rawPatientBundle;
+    }
+
+    /** Find which KVNR owns a MedicationStatement by scanning raw list bundles. */
+    public Optional<String> findKvnrByStatementId(String stmtId) {
+        for (Map.Entry<String, JsonNode> e : rawMedicationListBundles.entrySet()) {
+            for (JsonNode entry : e.getValue().path("entry")) {
+                JsonNode res = entry.path("resource");
+                if ("MedicationStatement".equals(res.path("resourceType").asText())
+                        && stmtId.equals(res.path("id").asText())) {
+                    return Optional.of(e.getKey());
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Find the raw MedicationStatement JsonNode by id across all list bundles. */
+    public Optional<JsonNode> findRawMedicationStatement(String stmtId) {
+        for (JsonNode bundle : rawMedicationListBundles.values()) {
+            for (JsonNode entry : bundle.path("entry")) {
+                JsonNode res = entry.path("resource");
+                if ("MedicationStatement".equals(res.path("resourceType").asText())
+                        && stmtId.equals(res.path("id").asText())) {
+                    return Optional.of(res);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Set or replace MedicationStatement.basedOn in the raw list bundle. */
+    public void setStatementBasedOn(String stmtId, String reference) {
+        for (JsonNode bundle : rawMedicationListBundles.values()) {
+            for (JsonNode entry : bundle.path("entry")) {
+                JsonNode res = entry.path("resource");
+                if ("MedicationStatement".equals(res.path("resourceType").asText())
+                        && stmtId.equals(res.path("id").asText())) {
+                    ArrayNode basedOn = objectMapper.createArrayNode();
+                    basedOn.addObject().put("reference", reference);
+                    ((ObjectNode) res).set("basedOn", basedOn);
+                    return;
+                }
+            }
+        }
+    }
+
+    /** Remove MedicationStatement.basedOn from the raw list bundle. */
+    public void removeStatementBasedOn(String stmtId) {
+        for (JsonNode bundle : rawMedicationListBundles.values()) {
+            for (JsonNode entry : bundle.path("entry")) {
+                JsonNode res = entry.path("resource");
+                if ("MedicationStatement".equals(res.path("resourceType").asText())
+                        && stmtId.equals(res.path("id").asText())) {
+                    ((ObjectNode) res).remove("basedOn");
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Upsert a MedicationRequest (and optional Medication) into the raw plan bundle.
+     * Creates the bundle if it doesn't exist yet.
+     */
+    public void upsertToPlanBundle(String kvnr, JsonNode medicationRequestNode, JsonNode medicationNode) {
+        rawMedicationPlanBundles.compute(kvnr, (k, existing) -> {
+            ObjectNode bundle = existing != null ? (ObjectNode) existing : objectMapper.createObjectNode()
+                    .put("resourceType", "Bundle")
+                    .put("type", "searchset")
+                    .put("total", 0);
+            if (!bundle.has("entry")) {
+                bundle.set("entry", objectMapper.createArrayNode());
+            }
+            ArrayNode entries = (ArrayNode) bundle.get("entry");
+
+            // Upsert Medication (include mode) — skip if already present
+            if (medicationNode != null) {
+                String medId = medicationNode.path("id").asText();
+                boolean exists = false;
+                for (JsonNode e : entries) {
+                    if (medId.equals(e.path("resource").path("id").asText())) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    ObjectNode medEntry = objectMapper.createObjectNode();
+                    medEntry.put("fullUrl", "https://example.org/fhir/Medication/" + medId);
+                    medEntry.set("search", objectMapper.createObjectNode().put("mode", "include"));
+                    medEntry.set("resource", medicationNode);
+                    entries.add(medEntry);
+                }
+            }
+
+            // Replace existing MedicationRequest entry (match mode)
+            String reqId = medicationRequestNode.path("id").asText();
+            ArrayNode updated = objectMapper.createArrayNode();
+            for (JsonNode e : entries) {
+                if (!reqId.equals(e.path("resource").path("id").asText())) {
+                    updated.add(e);
+                }
+            }
+            ObjectNode reqEntry = objectMapper.createObjectNode();
+            reqEntry.put("fullUrl", "https://example.org/fhir/MedicationRequest/" + reqId);
+            reqEntry.set("search", objectMapper.createObjectNode().put("mode", "match"));
+            reqEntry.set("resource", medicationRequestNode);
+            updated.add(reqEntry);
+            bundle.set("entry", updated);
+
+            // Recount total (match entries only)
+            long total = 0;
+            for (JsonNode e : updated) {
+                if ("match".equals(e.path("search").path("mode").asText())) total++;
+            }
+            bundle.put("total", total);
+            return bundle;
+        });
+    }
+
+    /** Remove a MedicationRequest from the raw plan bundle by id. */
+    public void removeFromPlanBundle(String kvnr, String reqId) {
+        JsonNode bundle = rawMedicationPlanBundles.get(kvnr);
+        if (bundle == null) return;
+        ArrayNode entries = (ArrayNode) bundle.path("entry");
+        if (entries.isMissingNode()) return;
+        ArrayNode updated = objectMapper.createArrayNode();
+        for (JsonNode e : entries) {
+            if (!reqId.equals(e.path("resource").path("id").asText())) updated.add(e);
+        }
+        ((ObjectNode) bundle).set("entry", updated);
+        long total = 0;
+        for (JsonNode e : updated) {
+            if ("match".equals(e.path("search").path("mode").asText())) total++;
+        }
+        ((ObjectNode) bundle).put("total", total);
+    }
+
+    /**
+     * Build a FHIR Bundle (searchset) of Medication resources whose code.text contains the search term.
+     * Searches across all cached plan and list bundles.
+     */
+    public JsonNode buildMedicationSearchBundle(String nameContains) {
+        ObjectNode bundle = objectMapper.createObjectNode()
+                .put("resourceType", "Bundle")
+                .put("type", "searchset");
+        ArrayNode entries = objectMapper.createArrayNode();
+        String lowerTerm = nameContains != null ? nameContains.toLowerCase().trim() : "";
+        Set<String> seen = new HashSet<>();
+
+        for (JsonNode source : rawMedicationPlanBundles.values()) {
+            collectMatchingMedications(source, lowerTerm, seen, entries);
+        }
+        for (JsonNode source : rawMedicationListBundles.values()) {
+            collectMatchingMedications(source, lowerTerm, seen, entries);
+        }
+        bundle.set("entry", entries);
+        bundle.put("total", entries.size());
+        return bundle;
+    }
+
+    private void collectMatchingMedications(JsonNode source, String lowerTerm, Set<String> seen, ArrayNode out) {
+        for (JsonNode e : source.path("entry")) {
+            JsonNode res = e.path("resource");
+            if (!"Medication".equals(res.path("resourceType").asText())) continue;
+            String id = res.path("id").asText();
+            if (seen.contains(id)) continue;
+            String text = res.path("code").path("text").asText("").toLowerCase();
+            if (text.contains(lowerTerm)) {
+                seen.add(id);
+                ObjectNode matchEntry = objectMapper.createObjectNode();
+                matchEntry.set("search", objectMapper.createObjectNode().put("mode", "match"));
+                matchEntry.set("resource", res);
+                out.add(matchEntry);
+            }
+        }
+    }
+
+    /**
+     * Parse a FHIR MedicationRequest resource node (with medications from the same bundle)
+     * into the flat MedicationRequest model. Public for use by FhirResource.
+     */
+    public MedicationRequest parseToFlatMedicationRequest(JsonNode r, JsonNode bundleForMedications) {
+        Map<String, JsonNode> medications = collectMedications(bundleForMedications);
+        return fhirRequestToMedicationRequest(r, medications);
+    }
+
+    /**
+     * Check for duplicates against the in-memory plan for a given KVNR,
+     * given a FHIR MedicationRequest node.
+     */
+    public DuplicateMatch checkForDuplicatesFhir(String kvnr, JsonNode fhirReq, JsonNode bundle) {
+        MedicationRequest flat = parseToFlatMedicationRequest(fhirReq, bundle);
+        return checkForDuplicates(kvnr, flat);
+    }
+
+    /**
+     * Build a FHIR EMPChronologyProvenance resource node for the current chronology of a patient.
+     */
+    public ObjectNode buildEmpChronologyProvenance(String kvnr, String agent) {
+        EMPChronologyProvenance chrono = updateChronology(kvnr);
+        ObjectNode prov = objectMapper.createObjectNode();
+        prov.put("resourceType", "Provenance");
+        prov.put("id", chrono.getId());
+        ObjectNode meta = objectMapper.createObjectNode();
+        meta.set("profile", objectMapper.createArrayNode()
+                .add("https://gematik.de/fhir/epa-medication/StructureDefinition/epa-emp-chronology-provenance|1.3.0"));
+        prov.set("meta", meta);
+        prov.put("recorded", java.time.Instant.now().toString());
+        ObjectNode agentNode = objectMapper.createObjectNode();
+        agentNode.set("who", objectMapper.createObjectNode()
+                .set("identifier", objectMapper.createObjectNode().put("value", agent != null ? agent : "unknown")));
+        prov.set("agent", objectMapper.createArrayNode().add(agentNode));
+        return prov;
+    }
+
+    /**
+     * Build a FHIR EPAActivityProvenance resource node for an activity.
+     */
+    public ObjectNode buildActivityProvenance(String agent, String reference) {
+        logActivity(agent, reference);
+        ObjectNode prov = objectMapper.createObjectNode();
+        prov.put("resourceType", "Provenance");
+        prov.put("id", java.util.UUID.randomUUID().toString());
+        ObjectNode meta = objectMapper.createObjectNode();
+        meta.set("profile", objectMapper.createArrayNode()
+                .add("https://gematik.de/fhir/epa-medication/StructureDefinition/epa-activity-provenance|1.3.0"));
+        prov.set("meta", meta);
+        prov.put("recorded", java.time.Instant.now().toString());
+        ObjectNode agentNode = objectMapper.createObjectNode();
+        agentNode.set("who", objectMapper.createObjectNode()
+                .set("identifier", objectMapper.createObjectNode().put("value", agent != null ? agent : "unknown")));
+        prov.set("agent", objectMapper.createArrayNode().add(agentNode));
+        prov.set("target", objectMapper.createArrayNode()
+                .add(objectMapper.createObjectNode().put("reference", reference)));
+        return prov;
     }
 }

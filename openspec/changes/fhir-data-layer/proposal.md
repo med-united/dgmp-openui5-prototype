@@ -18,7 +18,7 @@ Migrate the prototype end-to-end to FHIR R4 resources and `openui5-fhir` `FHIRMo
 
 ## Scope
 
-**In scope**: `MedicationRequest` (eMP), `MedicationStatement` (eML prescriptions), `MedicationDispense` (eML dispensements, `GEM_ERP_PR_MedicationDispense`), `Patient`, `EPAActivityProvenance`, `EMPChronologyProvenance`, `Medication`
+**In scope**: `MedicationRequest` (`EPAMedicationRequest` — eMP entries and eML prescription records), `MedicationDispense` (`EPAMedicationDispense` / `GEM_ERP_PR_MedicationDispense` — eML dispensements), `Patient`, `EPAActivityProvenance`, `EMPChronologyProvenance`, `Medication`
 
 **Out of scope**: SMART on FHIR auth, `CapabilityStatement`, `AMTSSimulator.js` refactoring, PDF export
 
@@ -31,3 +31,7 @@ Migrate the prototype end-to-end to FHIR R4 resources and `openui5-fhir` `FHIRMo
 - `openui5-fhir` added as a project dependency; OpenUI5 CDN URL pinned
 
 → **All technical decisions, endpoint contracts, phase plans, derived-array contracts, test strategy, and developer workflow are in [`design.md`](design.md).**
+
+## Known Follow-ups (Out of Scope)
+
+**`MedicationService.java` decomposition**: The mock server's `MedicationService.java` is a ~49KB god class. Phase 2 adds new `/fhir/` routes to it without restructuring. A follow-up change should extract: `FhirBundleAssembler` (constructs searchset/batch-response Bundles), `MedicationStateManager` (in-memory state mutations), and per-operation handlers for `$link-emp`/`$unlink-emp`. This is a server-side code quality concern and does not affect FHIR correctness or client behavior.

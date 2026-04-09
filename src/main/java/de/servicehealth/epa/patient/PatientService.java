@@ -1,6 +1,6 @@
 package de.servicehealth.epa.patient;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import de.servicehealth.epa.patient.model.Patient;
@@ -8,6 +8,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -42,8 +43,8 @@ public class PatientService {
                 return;
             }
 
-            List<Patient> patients = objectMapper.readValue(is, new TypeReference<List<Patient>>() {
-            });
+            JsonNode bundle = objectMapper.readTree(is);
+            List<Patient> patients = parseFhirPatientBundle(bundle);
             patients.forEach(p -> patientCache.put(p.getKvnr(), p));
             LOG.info("Loaded " + patients.size() + " patients from fixtures");
 
@@ -59,6 +60,49 @@ public class PatientService {
         } catch (IOException e) {
             LOG.severe("Failed to load patient fixtures: " + e.getMessage());
         }
+    }
+
+    private List<Patient> parseFhirPatientBundle(JsonNode bundle) {
+        List<Patient> patients = new ArrayList<>();
+        JsonNode entries = bundle.path("entry");
+        if (entries.isMissingNode()) return patients;
+
+        for (JsonNode entry : entries) {
+            JsonNode resource = entry.path("resource");
+            if (!"Patient".equals(resource.path("resourceType").asText())) continue;
+
+            String kvnr = null;
+            String insuranceType = null;
+            for (JsonNode identifier : resource.path("identifier")) {
+                String system = identifier.path("system").asText("");
+                if (system.contains("gkv/kvid-10")) {
+                    kvnr = identifier.path("value").asText(null);
+                    insuranceType = "GKV";
+                } else if (system.contains("pkv/kvid-10")) {
+                    kvnr = identifier.path("value").asText(null);
+                    insuranceType = "PKV";
+                }
+            }
+            if (kvnr == null) continue;
+
+            JsonNode nameNode = resource.path("name");
+            String firstName = "";
+            String lastName = "";
+            if (!nameNode.isMissingNode() && nameNode.size() > 0) {
+                JsonNode name = nameNode.get(0);
+                lastName = name.path("family").asText("");
+                JsonNode given = name.path("given");
+                if (!given.isMissingNode() && given.size() > 0) {
+                    firstName = given.get(0).asText("");
+                }
+            }
+
+            String birthDateStr = resource.path("birthDate").asText(null);
+            LocalDate dateOfBirth = birthDateStr != null ? LocalDate.parse(birthDateStr) : null;
+
+            patients.add(new Patient(kvnr, firstName, lastName, dateOfBirth, insuranceType));
+        }
+        return patients;
     }
 
     public Optional<Patient> findByKvnr(String kvnr) {

@@ -16,14 +16,11 @@ Security and privacy note: moving mutations to FHIR Batch Bundles (`POST /fhir`)
 sequenceDiagram
     participant View (XML)
     participant FHIRModel
-    participant FhirRepository
     participant MockServer (/fhir/)
 
-    View (XML)->>FHIRModel: bind("/MedicationRequest?patient={kvnr}")
-    FHIRModel->>FhirRepository: read(MedicationRequest, {patient})
-    FhirRepository->>MockServer (/fhir/): GET /fhir/MedicationRequest?patient=X
-    MockServer (/fhir/)-->>FhirRepository: Bundle (searchset)
-    FhirRepository-->>FHIRModel: resources[]
+    View (XML)->>FHIRModel: bind("/MedicationDispense?patient={kvnr}")
+    FHIRModel->>MockServer (/fhir/): POST /fhir/MedicationDispense/_search (patient=X)
+    MockServer (/fhir/)-->>FHIRModel: Bundle (searchset, includes MedicationRequest)
     FHIRModel-->>View (XML): update bindings (slicing paths)
 ```
 
@@ -32,21 +29,20 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Controller
-    participant FhirRepository
     participant FHIRModel
     participant MockServer (/fhir/)
 
     Controller->>FHIRModel: setProperty(path, value)
-    Controller->>FhirRepository: submitChanges()
-    FhirRepository->>MockServer (/fhir/): POST /fhir  (Bundle type=batch, X-Requesting-Organization header)
-    MockServer (/fhir/)-->>FhirRepository: Bundle type=batch-response
+    Controller->>FHIRModel: submitChanges()
+    FHIRModel->>MockServer (/fhir/): POST /fhir  (Bundle type=batch, X-Requesting-Organization header)
+    MockServer (/fhir/)-->>FHIRModel: Bundle type=batch-response
     alt success
-        FhirRepository-->>Controller: success callback
+        FHIRModel-->>Controller: success callback
     else 409 isDuplicate
-        FhirRepository-->>Controller: error callback (OperationOutcome)
+        FHIRModel-->>Controller: error callback (OperationOutcome)
         Controller->>Controller: open DuplicateDialog
     else 409 chronology mismatch
-        FhirRepository-->>Controller: error callback (OperationOutcome)
+        FHIRModel-->>Controller: error callback (OperationOutcome)
         Controller->>Controller: show stale-edit message
     end
 ```
@@ -105,24 +101,20 @@ The org identifier value is sourced from the `ui` JSONModel at session start. Th
 
 ```
 models.js
-  createFHIRModel()   → new FHIRModel("/fhir", { httpHeaders: {...}, ... })  ← medication resources
+  createFHIRModel()   → new FHIRModel("/fhir", { httpHeaders: {...}, serviceUrl: { search: { defaultHttpMethod: "POST" } }, ... })
+                                                                             ← medication resources, POST-based search
   createUIModel()     → new JSONModel({ currentKVNR, busy, orgId, ... })     ← UI state only
 ```
 
-**`FhirRepository` abstraction layer**: Controllers do not call `FHIRModel` directly. Instead, a thin `FhirRepository` module wraps the five operations actually used by the prototype:
+**Controllers bind directly to `FHIRModel`**: No `FhirRepository` wrapper. `FHIRModel` is designed as the central instance — it handles request grouping, batch creation, timing, and lifecycle automatically (analogous to how ODataModel works). Introducing a wrapper layer risks breaking the model's internal state management and adds a seam that provides no correctness benefit.
 
-```js
-// model/FhirRepository.js
-read(resourceType, searchParams)   // → Promise<Resource[]>
-create(resource)                   // → void (deferred, needs submitChanges)
-update(resource)                   // → void (deferred)
-remove(resourceType, id)           // → void (deferred)
-submitChanges()                    // → Promise<batchResponse>
-```
+Controllers call `this.getModel("fhir")` to obtain `FHIRModel` and use its native API: list bindings for reads, `createEntry`/`setProperty`/`deleteCreatedEntry` for write preparation, and `submitChanges()` to dispatch. Error callbacks from `submitChanges()` carry `OperationOutcome` resources for per-entry error handling.
 
-This decouples all controllers from raw `FHIRModel` API calls. If `openui5-fhir` must be replaced, only `FhirRepository.js` changes — controllers are unaffected.
+**KVNR change coordination**: When the user selects a different patient, `currentKVNR` on the `"ui"` JSONModel changes. `FHIRModel` list bindings do not auto-update for parameter changes — `refresh()` only re-fetches for the *same* parameters. The correct pattern (per openui5-fhir docs) is: in the KVNR change handler, call `bindItems()` / `bindAggregation()` on each affected list control with the new `patient=<kvnr>` parameter. This replaces the current `_attachKvnrListener` + `JSONModel.bindProperty()` pattern. Each medication controller (MedicationPlan, MedicationList, Reconciliation) is responsible for re-binding its own list controls when it detects a KVNR change on the `"ui"` model via a standard `attachPropertyChange` listener.
 
-**Fallback criteria**: If `openui5-fhir` v2.4.0 is incompatible with the pinned OpenUI5 version (confirmed during Phase 1), or if a critical security issue arises with no available patch, the fallback is a custom adapter implementing the five `FhirRepository` methods using plain `fetch()` + manual Bundle construction. The adapter scope is bounded to what `FhirRepository` exposes — it does not need to replicate the full `FHIRModel` API. This fallback is a conscious last resort; the primary bet is `openui5-fhir`.
+**Prerequisite — Component.js + manifest.json**: `FHIRModel` must be bootstrapped via `manifest.json` (the openui5-fhir documented pattern for model registration, POST-based search config, and lifecycle customization). This requires a proper UI5 `Component.js` and `ComponentContainer` bootstrap in `index.html`. The app currently bootstraps by directly creating an `XMLView` — this must be migrated as task 4.0 before any other Phase 3 work.
+
+**Fallback criteria**: If `openui5-fhir` v2.4.0 is incompatible with the pinned OpenUI5 version (confirmed during Phase 1), or if a critical security issue arises with no available patch, the fallback is a custom adapter using plain `fetch()` + manual Bundle construction, implemented as a drop-in replacement for `FHIRModel`'s binding and submission API at the component level. This fallback is a conscious last resort; the primary bet is `openui5-fhir`.
 
 ### Decision 2: Mock server exposes FHIR REST endpoints at `/fhir/`
 
@@ -132,14 +124,17 @@ FHIR endpoints needed:
 
 | FHIR Request | Maps to |
 |---|---|
-| `GET /fhir/MedicationRequest?patient=<kvnr>` | eMP bundle for patient |
-| `GET /fhir/MedicationStatement?patient=<kvnr>&_include=MedicationStatement:based-on` | eML prescriptions + linked MedicationRequests |
-| `GET /fhir/MedicationDispense?patient=<kvnr>&_include=MedicationDispense:prescription` | eML dispensements + linked MedicationRequests |
-| `GET /fhir/Patient?identifier=<kvnr>` | Patient resource lookup |
-| `GET /fhir/Medication?name:contains=<term>` | Medication name autocomplete (replaces `/api/medications/search`) |
+| `POST /fhir/MedicationRequest/_search` (`patient=<kvnr>`) | eMP bundle for patient |
+| `POST /fhir/MedicationDispense/_search` (`patient=<kvnr>&_include=MedicationDispense:medication-request`) | eML dispensements + their authorizing MedicationRequests |
+| `POST /fhir/Patient/_search` (`identifier=<kvnr>`) | Patient resource lookup |
+| `GET /fhir/Medication?name:contains=<term>` | Medication name autocomplete — no PHI in params, GET is acceptable |
 | `POST /fhir` (batch) | All mutating operations (add/update/link/unlink) |
 
-`FHIRModel` issues its own HTTP requests based on the model binding context. The mock server must parse standard FHIR search parameters (`patient`, `_include`, `name:contains`) and return properly shaped `Bundle` resources. Only the search parameters listed above are required; the mock server does not need to be a general-purpose FHIR server.
+All search requests that carry a KVNR (`patient` or `identifier` parameter) use **POST-based search** (`POST /<ResourceType>/_search` with params in the request body) so the KVNR never appears in HTTPS logs. `FHIRModel` is configured with `defaultHttpMethod: "POST"` for search (see Decision 1). The mock server must handle both GET and POST search routes for compatibility during Phase 2 development; only POST is required for Phase 3.
+
+The mock server must parse standard FHIR search parameters (`patient`, `identifier`, `_include`, `name:contains`) and return properly shaped `Bundle` resources. Only the parameters listed above are required; the mock server does not need to be a general-purpose FHIR server.
+
+**Note on eML**: The eML no longer uses a `MedicationStatement` endpoint. The eML is assembled from `MedicationDispense` resources with `_include=MedicationDispense:medication-request` pulling the authorizing eMP `MedicationRequest` entries. There is no separate "prescription event" resource type in the eML — the dispense's `authorizingPrescription` reference points directly to the eMP entry.
 
 **Alternative considered**: Keep `/api/` URLs and make the server return FHIR-shaped JSON. Rejected: `FHIRModel` requires a FHIR-compliant base URL and will not work with custom REST paths.
 
@@ -154,7 +149,7 @@ The mock server validates and processes batch Bundles, returning a `batch-respon
 
 **Provenance**: `EPAActivityProvenance` and `EMPChronologyProvenance` are **server-generated** on every successful write. The mock server includes them as additional entries in the `batch-response` Bundle. The client does not construct provenance resources; `FHIRModel` processes the `batch-response` and updates its internal cache with returned resources including provenance entries. Binding to provenance data from the client side is **out of scope** for Phase 3 — provenance is server-side audit state only.
 
-**Per-entry error handling**: `DuplicateDialog` (HTTP 409 `isDuplicate`) and chronology mismatch (`MEDSVC_EMP_CHRONOLOGY_ID_MISMATCH`) return as `response.status: "409"` entries within the `batch-response`. `FHIRModel` fires error callbacks per failed entry. Controllers subscribe to these callbacks to trigger `DuplicateDialog` or show a stale-edit message. The mock server MUST return structured FHIR `OperationOutcome` resources as the body of failed `batch-response` entries so controllers can distinguish duplicate from chronology errors by `OperationOutcome.issue.code`.
+**Per-entry error handling**: `DuplicateDialog` (HTTP 409 `isDuplicate`) and chronology mismatch (`MEDSVC_EMP_CHRONOLOGY_ID_MISMATCH`) return as `response.status: "409"` entries within the `batch-response`. FHIR profile validation failures return `response.status: "422"` (`422 Unprocessable Entity`) — NOT `400 Bad Request` (corrected per ePA IG release notes; applies to addEMLEntry, addEMPEntry, linkEMP, unlinkEMP, updateEMPEntry, batchEMPEntries). `X-Requesting-Organization` header size violations return HTTP `431 Request Header Fields Too Large`. `FHIRModel` fires error callbacks per failed entry. Controllers subscribe to these callbacks to trigger `DuplicateDialog` or show a stale-edit message. The mock server MUST return structured FHIR `OperationOutcome` resources as the body of failed `batch-response` entries so controllers can distinguish error types by `OperationOutcome.issue.code`.
 
 ### Decision 4: Slicing syntax for all coding array bindings
 
@@ -162,15 +157,17 @@ The mock server validates and processes batch Bundles, returning a `batch-respon
 
 Examples:
 ```
-# ATC code
-medicationCodeableConcept/coding[system=http://www.whocc.no/atc]/code
+# PZN — on the resolved Medication resource (via medicationReference)
+Medication/code/coding[system=http://fhir.de/CodeSystem/ifa/pzn]/code
 
-# PZN
-medicationCodeableConcept/coding[system=http://fhir.de/CodeSystem/ifa/pzn]/code
+# ATC code — on the resolved Medication resource
+Medication/code/coding[system=http://www.whocc.no/atc]/code
 
 # medicationPlanIdentifier
 identifier[system=https://gematik.de/fhir/sid/emp-identifier]/value
 ```
+
+Note: Because fixtures use `medicationReference` (not `medicationCodeableConcept`), medication coding data lives on the resolved `Medication` resource, not inline on the `MedicationRequest` or `MedicationDispense`.
 
 Positional index syntax (`/coding/0/code`) is **prohibited** in all bindings.
 
@@ -188,49 +185,62 @@ Positional index syntax (`/coding/0/code`) is **prohibited** in all bindings.
 
 **Rationale**: `FHIRModel` is designed around FHIR context — binding UI components to paths like `/Patient/123` and resolving reverse chaining (e.g. `MedicationRequest?patient=<id>`) only works correctly when `Patient` is also a first-class FHIR resource. Deferring Patient migration forces a fractured architecture where `FHIRModel` handles medication resources while a legacy `JSONModel` holds patient state, preventing native use of reverse chaining and ValueSet binding for patient-level data (e.g. gender from a server-provided code list). The additional scope is small (one fixture file, one controller).
 
-### Decision 7: `MedicationDispense` for dispensements — not `MedicationStatement`
+### Decision 7: eML = `MedicationDispense` + included `MedicationRequest` — `MedicationStatement` included only for link/unlink
 
-Currently dispensements are nested under their parent prescription in the fixture (`dispensations: [...]`). In FHIR R4 and the ePA IG (`GEM_ERP_PR_MedicationDispense`), dispensements are a distinct resource type: `MedicationDispense`. Using `MedicationStatement` for dispensements would violate the ePA IG profiles (Decision 5) and make `basedOn` references illegal — `MedicationStatement.basedOn` only accepts `Reference(MedicationRequest | CarePlan | ServiceRequest)`, not another `MedicationStatement`.
+The ePA Medication Service eML contains two primary resource types:
+- **`MedicationRequest`** (`EPAMedicationRequest` profile) — the e-prescription record (Verordnungsdatensatz). This is the same resource as the corresponding eMP entry.
+- **`MedicationDispense`** (`EPAMedicationDispense` / `GEM_ERP_PR_MedicationDispense` profile) — the dispensement record (Abgabedatensatz).
 
-Mapping:
-- **`MedicationStatement`** — eML prescription event (one per prescription)
-- **`MedicationDispense`** — eML dispensement event; links back via `MedicationDispense.authorizingPrescription → MedicationRequest` and `MedicationDispense.partOf → MedicationStatement`
+`MedicationStatement` is returned only as an **included** resource (via `_revinclude=MedicationStatement:derived-from`), never as a primary match entry. It is **not used for display** — only as the target resource for `$link-emp`/`$unlink-emp` operations. The client obtains `MedicationStatement` IDs from the eML bundle to use when invoking these operations; no separate query is needed.
 
-The `MedicationList` controller assembles the history view by querying:
+The `MedicationList` controller assembles the history view with a single query:
 ```
-GET /fhir/MedicationStatement?patient=<kvnr>&_include=MedicationStatement:based-on
-GET /fhir/MedicationDispense?patient=<kvnr>&_include=MedicationDispense:prescription
+POST /fhir/MedicationDispense/_search  (patient=<kvnr>&_include=MedicationDispense:medication-request&_revinclude=MedicationStatement:derived-from)
 ```
-and grouping `MedicationDispense` entries under their linked `MedicationStatement` by `authorizingPrescription` reference.
+This returns:
+- `MedicationDispense` entries (mode=match) — the primary display entries
+- `MedicationRequest` entries (mode=include, via `authorizingPrescription`) — the authorizing prescriptions
+- `MedicationStatement` entries (mode=include, via `derivedFrom`, only when `_revinclude` param present) — for link/unlink operation targets
+
+The controller groups dispenses under their linked eMP entry by `MedicationDispense.authorizingPrescription` reference.
+
+**Dosage display precedence** (from ePA IG): When rendering dosage for an eML entry, use `MedicationDispense.dosageInstruction.text` if present; fall back to `MedicationRequest.dosageInstruction.text` otherwise. This rule applies in `formatter.js` and in any derived-array extraction for Reconciliation.
+
+**Medication display precedence** (from ePA IG): When a dispensement exists, `MedicationDispense.medicationReference` takes precedence over `MedicationRequest.medicationReference` for displaying medication name, PZN, and dosage form.
 
 ### Decision 8: Reconciliation algorithm reads from a derived plain array
 
-The Reconciliation view (US4) soft-match algorithm compares `MedicationStatement` and `MedicationRequest` entries by ATC code and PZN. This is a client-side multi-resource join that does not map naturally to `FHIRModel` list bindings (which bind a single resource type per binding).
+The Reconciliation view (US4) soft-match algorithm compares eML entries (from `MedicationDispense` + linked `MedicationRequest`) with eMP entries (from `MedicationRequest`) by ATC code and PZN. This is a client-side multi-resource join that does not map naturally to `FHIRModel` list bindings.
 
-**Chosen approach**: The `Reconciliation` controller calls `FhirRepository.read()` to fetch the current `MedicationRequest` and `MedicationStatement` bundles as plain JavaScript arrays, then runs the existing soft-match algorithm over those arrays unchanged. The results are stored in the `ui` JSONModel under `/reconciliation` for view binding. Data is never held twice — the derived array is rebuilt on each reconciliation load.
+**Chosen approach**: The `Reconciliation` controller uses `FHIRModel` list bindings to fetch `MedicationDispense` (with `_include=MedicationDispense:medication-request`) and `MedicationRequest` bundles, then extracts derived plain arrays before passing them to the soft-match algorithm. The results are stored in the `ui` JSONModel under `/reconciliation` for view binding. Data is never held twice — the derived array is rebuilt on each reconciliation load.
 
 **Reconciliation input contract** (fields the algorithm requires; source is authoritative):
 
-*eML side — from `MedicationStatement`:*
+Note: Because both `MedicationRequest` and `MedicationDispense` use `medicationReference` (not `medicationCodeableConcept`), medication data (name, PZN, ATC) must be resolved from the included `Medication` resource.
 
-| Derived field | Source FHIR path |
-|---|---|
-| `id` | `MedicationStatement.id` |
-| `medicationName` | `MedicationStatement.medicationCodeableConcept.text` |
-| `atcCode` | `MedicationStatement.medicationCodeableConcept.coding[system=http://www.whocc.no/atc].code` |
-| `pzn` | `MedicationStatement.medicationCodeableConcept.coding[system=http://fhir.de/CodeSystem/ifa/pzn].code` |
-| `medicationPlanIdentifier` | `MedicationStatement.identifier[system=https://gematik.de/fhir/sid/emp-identifier].value` |
-| `basedOnRef` | `MedicationStatement.basedOn[0].reference` |
-| `authoredDate` | `MedicationStatement.dateAsserted` |
+*eML side — from `MedicationDispense` + its linked `MedicationRequest` (via `authorizingPrescription`):*
 
-*eMP side — from `MedicationRequest`:*
+| Derived field | Source FHIR path | Notes |
+|---|---|---|
+| `dispenseId` | `MedicationDispense.id` | |
+| `prescriptionRef` | `MedicationDispense.authorizingPrescription[0].reference` | Use to look up linked `MedicationRequest` |
+| `medicationName` | `MedicationDispense.medicationReference` → resolved `Medication.code.text` | Fall back to linked `MedicationRequest.medicationReference` → resolved `Medication.code.text` if no dispense medication |
+| `atcCode` | resolved `Medication.code.coding[system=http://www.whocc.no/atc].code` | Dispense medication takes precedence |
+| `pzn` | resolved `Medication.code.coding[system=http://fhir.de/CodeSystem/ifa/pzn].code` | Dispense medication takes precedence |
+| `dosage` | `MedicationDispense.dosageInstruction[0].text` | Fall back to linked `MedicationRequest.dosageInstruction[0].text` |
+| `dispensedDate` | `MedicationDispense.whenHandedOver` | |
+| `authoredDate` | linked `MedicationRequest.authoredOn` | Prescription issuance date |
+| `medicationPlanIdentifier` | linked `MedicationRequest.identifier[system=https://gematik.de/fhir/sid/emp-identifier].value` | |
+| `wasSubstituted` | `MedicationDispense.substitution.wasSubstituted` | Must Support per ePA IG; display substitution indicator in UI |
+
+*eMP side — from `MedicationRequest` + resolved `Medication` (via `medicationReference`):*
 
 | Derived field | Source FHIR path |
 |---|---|
 | `id` | `MedicationRequest.id` |
-| `medicationName` | `MedicationRequest.medicationCodeableConcept.text` |
-| `atcCode` | `MedicationRequest.medicationCodeableConcept.coding[system=http://www.whocc.no/atc].code` |
-| `pzn` | `MedicationRequest.medicationCodeableConcept.coding[system=http://fhir.de/CodeSystem/ifa/pzn].code` |
+| `medicationName` | `MedicationRequest.medicationReference` → resolved `Medication.code.text` |
+| `atcCode` | resolved `Medication.code.coding[system=http://www.whocc.no/atc].code` |
+| `pzn` | resolved `Medication.code.coding[system=http://fhir.de/CodeSystem/ifa/pzn].code` |
 | `medicationPlanIdentifier` | `MedicationRequest.identifier[system=https://gematik.de/fhir/sid/emp-identifier].value` |
 | `status` | `MedicationRequest.status` |
 
@@ -238,20 +248,22 @@ These mappings are the contract between the FHIR layer and the reconciliation al
 
 ### Decision 9: `AMTSSimulator` receives a derived plain array — not FHIR bindings
 
-`AMTSSimulator.js` checks drug interactions over active `MedicationRequest` entries. After Phase 3, the `MedicationPlan` controller fetches active entries via `FhirRepository.read()`, extracts the relevant FHIR paths into a plain array, and passes that array to `AMTSSimulator.checkInteractions()`. `AMTSSimulator.js` itself is **not modified** — it continues to consume the same flat object shape. FHIR path resolution is the controller's responsibility; `AMTSSimulator` remains FHIR-unaware.
+`AMTSSimulator.js` checks drug interactions over active `MedicationRequest` entries. After Phase 3, the `MedicationPlan` controller fetches active entries via a `FHIRModel` list binding, extracts the relevant FHIR paths into a plain array, and passes that array to `AMTSSimulator.checkInteractions()`. `AMTSSimulator.js` itself is **not modified** — it continues to consume the same flat object shape. FHIR path resolution (including resolving `medicationReference` → `Medication`) is the controller's responsibility; `AMTSSimulator` remains FHIR-unaware.
 
 **AMTS input contract** (fields `AMTSSimulator.checkInteractions()` requires; source is authoritative):
 
 | Derived field | Source FHIR path |
 |---|---|
 | `id` | `MedicationRequest.id` |
-| `medicationName` | `MedicationRequest.medicationCodeableConcept.text` |
-| `atcCode` | `MedicationRequest.medicationCodeableConcept.coding[system=http://www.whocc.no/atc].code` |
-| `pzn` | `MedicationRequest.medicationCodeableConcept.coding[system=http://fhir.de/CodeSystem/ifa/pzn].code` |
-| `activeIngredient` | `MedicationRequest.medicationCodeableConcept.coding[system=http://fhir.de/CodeSystem/ask].display` |
+| `medicationName` | `MedicationRequest.medicationReference` → resolved `Medication.code.text` |
+| `atcCode` | resolved `Medication.code.coding[system=http://www.whocc.no/atc].code` |
+| `pzn` | resolved `Medication.code.coding[system=http://fhir.de/CodeSystem/ifa/pzn].code` |
+| `activeIngredient` | `null` (see resolution below) |
 | `status` | `MedicationRequest.status` |
 
 Only entries with `status = "active"` are passed to `AMTSSimulator`. This is the contract boundary — if `AMTSSimulator` needs additional fields in future, this table must be updated before the controller is changed.
+
+> **`activeIngredient` resolution — accepted degradation (Option C).** The `KBV_PR_ERP_Medication_PZN` profile prohibits `Medication.ingredient` (`max=0`), so `activeIngredient` cannot be sourced from fixtures. **Chosen**: pass `activeIngredient: null` to `AMTSSimulator`. AMTS interaction checks that rely on ingredient-string matching will not fire for PZN-profiled medications; ATC-code-based rules continue to work. This is acceptable for the prototype — AMTS is a simulator and ingredient-level accuracy is not a goal of this change. `AMTSSimulator.js` is not modified.
 
 ### Decision 10: Phased migration — fixtures → server → client
 
@@ -287,7 +299,7 @@ This allows running the old and new paths in parallel during development and rol
 |---|---|---|
 | 1 | OpenUI5 CDN URL pinned to `1.120.6`; FHIR R4 Bundle fixture files (incl. `Patient`) written; `/api/` server-side flattening updated to serve them | Revert `index.html` pin + fixture files + server flattening logic |
 | 2 | `/fhir/` endpoints on mock server; old `/api/` routes intact | Disable `/fhir/` routes |
-| 3 | `openui5-fhir` integrated; `PatientSelection` + all medication controllers rewritten; `AMTSSimulator` input adapter added; `/api/` routes removed | Git revert Phase 3 commits |
+| 3 | **Prerequisite**: `Component.js` + `manifest.json` created, `index.html` migrated to `ComponentContainer` (task 4.0); then: `openui5-fhir` integrated; `PatientSelection` + all medication controllers rewritten; `AMTSSimulator` input adapter added; `/api/` routes removed | Git revert Phase 3 commits |
 
 ---
 
@@ -308,7 +320,7 @@ Each phase has explicit gates. Phase N+1 does not start until all gates for Phas
 | Test | How |
 |---|---|
 | Each `/fhir/` endpoint returns a valid FHIR Bundle | REST-Assured contract tests (Quarkus test profile) against the running mock server |
-| `_include` parameters return linked resources | Contract test: `GET /fhir/MedicationStatement?patient=X&_include=MedicationStatement:based-on` includes `MedicationRequest` entries |
+| `_include` parameters return linked resources | Contract test: `POST /fhir/MedicationDispense/_search` with `patient=X&_include=MedicationDispense:medication-request` returns `MedicationRequest` entries alongside dispenses |
 | Batch `POST /fhir` returns `batch-response` with correct per-entry status | Contract test: submit a batch with one valid and one duplicate entry; verify `batch-response` statuses |
 | US0–US12 still work end-to-end (regression) | Manual walkthrough against `/api/` routes (unchanged at this phase) |
 
@@ -316,7 +328,7 @@ Each phase has explicit gates. Phase N+1 does not start until all gates for Phas
 
 | Test | How |
 |---|---|
-| Reconciliation derived-array contract | Jest unit test: construct minimal `MedicationStatement` + `MedicationRequest` FHIR JSON, run the controller's mapping function, assert derived fields match the contract table in Decision 8 |
+| Reconciliation derived-array contract | Jest unit test: construct minimal `MedicationDispense` + linked `MedicationRequest` FHIR JSON, run the controller's mapping function, assert derived fields match the contract table in Decision 8 (including dosage fallback and `wasSubstituted`) |
 | AMTS derived-array contract | Jest unit test: construct minimal `MedicationRequest` FHIR JSON, run the controller's mapping function, assert fields match the contract table in Decision 9 |
 | No positional array indices in view/controller code | Pre-commit grep hook (see Developer Workflow) |
 | US0–US12 regression via FHIRModel | Manual walkthrough of all use cases against `/fhir/` routes with old `/api/` routes disabled |
@@ -353,6 +365,21 @@ Use [FHIR Dev Tools browser extension](https://chrome.google.com/webstore/detail
 
 ---
 
+### Decision 11: POST-based search for all patient-identifier queries
+
+All FHIR search requests that carry a KVNR (`patient=<kvnr>` or `identifier=<kvnr>`) MUST use POST-based search (`POST /<ResourceType>/_search` with parameters in the request body). This prevents PHI from appearing in HTTPS access logs — a strict requirement of the ePA IG's privacy posture.
+
+`FHIRModel` is configured at initialisation with `defaultHttpMethod: "POST"` for search (see Decision 1). The mock server exposes both `GET /<ResourceType>?...` and `POST /<ResourceType>/_search` routes during Phase 2 development; by Phase 3 completion only the POST routes are required.
+
+Exception: `GET /fhir/Medication?name:contains=<term>` uses GET because the search term is not PHI and the GET form is simpler for the autocomplete use case.
+
+---
+
 ## Open Questions
 
 All questions resolved. No outstanding decisions.
+
+**Resolved after code review:**
+- `activeIngredient` profile tension → Option C accepted (pass `null`, no ingredient matching); see Decision 9
+- KVNR→FHIRModel coordination → `bindItems`/`bindAggregation` on KVNR change; see Decision 1
+- Component.js prerequisite → task 4.0 added; see Decision 1

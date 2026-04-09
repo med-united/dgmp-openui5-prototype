@@ -36,7 +36,8 @@
                     rows="{path: 'app>/reconciliationItems', parameters: {arrayNames: ['dispensations']}}"
                     selectionMode="None"
                     enableColumnReordering="false"
-                    visibleRowCount="10">
+                    visibleRowCount="10"
+                    rowHeight="50">
                     
                     <table:rowSettingsTemplate>
                         <table:RowSettings highlight="{path: 'app>status', formatter: '.formatRowHighlight'}" />

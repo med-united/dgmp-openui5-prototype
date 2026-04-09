@@ -51,11 +51,11 @@
                             <items>
                                 <!-- Tab 1: Electronic Medication Plan (eMP) -->
                                 <IconTabFilter
-                                    text="eMP (Current Plan)"
+                                    text="Current Plan"
                                     icon="sap-icon://clinical-order">
                                     <mvc:XMLView viewName="epa.view.MedicationPlan" />
                                 </IconTabFilter>
-                                
+
                                 <!-- Tab 2: Electronic Medication List (eML) -->
                                 <IconTabFilter
                                     text="eML (History)"
@@ -66,7 +66,8 @@
                                 <!-- Tab 3: Reconciliation -->
                                 <IconTabFilter
                                     text="Reconciliation"
-                                    icon="sap-icon://compare">
+                                    icon="sap-icon://compare"
+                                    tooltip="Reconciliation (eML vs eMP)">
                                     <mvc:XMLView viewName="epa.view.Reconciliation" />
                                 </IconTabFilter>
                             </items>

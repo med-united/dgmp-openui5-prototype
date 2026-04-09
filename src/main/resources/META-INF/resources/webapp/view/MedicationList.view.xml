@@ -18,6 +18,7 @@
             selectionMode="Single"
             enableColumnReordering="false"
             visibleRowCount="10"
+            rowHeight="50"
             rowSelectionChange=".onMedicationRowSelect"
             noData="No medications found in eML">
             
