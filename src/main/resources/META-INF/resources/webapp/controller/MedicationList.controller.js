@@ -279,8 +279,8 @@ sap.ui.define([
         },
 
         /**
-         * Link a MedicationStatement to a MedicationRequest (eMP entry) via $link-emp.
-         * Task 5.9: invoke POST /fhir/MedicationStatement/:id/$link-emp
+         * Link a MedicationStatement to a MedicationRequest (eMP entry) via the link-emp operation.
+         * Task 5.9: invoke POST /fhir/MedicationStatement/:id/link-emp
          */
         onLinkToPlanEntry: function (oEmlEntry, oEmpEntry) {
             var that = this;
@@ -294,7 +294,7 @@ sap.ui.define([
             }
 
             this.getView().setBusy(true);
-            fetch("/fhir/MedicationStatement/" + sStatementId + "/$link-emp", {
+            fetch("/fhir/MedicationStatement/" + sStatementId + "/link-emp", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -324,8 +324,8 @@ sap.ui.define([
         },
 
         /**
-         * Unlink a MedicationStatement from its eMP entry via $unlink-emp.
-         * Task 5.9: invoke POST /fhir/MedicationStatement/:id/$unlink-emp
+         * Unlink a MedicationStatement from its eMP entry via the unlink-emp operation.
+         * Task 5.9: invoke POST /fhir/MedicationStatement/:id/unlink-emp
          */
         onUnlinkEntry: function (oEmlEntry) {
             var that = this;
@@ -339,7 +339,7 @@ sap.ui.define([
             }
 
             this.getView().setBusy(true);
-            fetch("/fhir/MedicationStatement/" + sStatementId + "/$unlink-emp", {
+            fetch("/fhir/MedicationStatement/" + sStatementId + "/unlink-emp", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

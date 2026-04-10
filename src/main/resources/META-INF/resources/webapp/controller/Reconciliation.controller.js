@@ -351,7 +351,7 @@ sap.ui.define([
         },
 
         /**
-         * Perform link via FHIR $link-emp operation on the MedicationStatement.
+         * Perform link via the link-emp operation on the MedicationStatement.
          * The MedicationStatement ID is stored in the ui/medicationStatementMap.
          */
         _performLink: function (oReconcileItem, oEmpEntry) {
@@ -369,7 +369,7 @@ sap.ui.define([
             }
 
             this.getView().setBusy(true);
-            fetch("/fhir/MedicationStatement/" + sStatementId + "/$link-emp", {
+            fetch("/fhir/MedicationStatement/" + sStatementId + "/link-emp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-Requesting-Organization": "Hospital-A" },
                 body: JSON.stringify({
@@ -406,7 +406,7 @@ sap.ui.define([
             }
 
             this.getView().setBusy(true);
-            fetch("/fhir/MedicationStatement/" + sStatementId + "/$unlink-emp", {
+            fetch("/fhir/MedicationStatement/" + sStatementId + "/unlink-emp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-Requesting-Organization": "Hospital-A" },
                 body: JSON.stringify({ resourceType: "Parameters", parameter: [] })
